@@ -11,8 +11,7 @@ import { useRouter } from "expo-router";
 import axios from "axios";
 import { AuthContext } from "../context/AuthContext";
 import { LinearGradient } from "expo-linear-gradient";
-
-const BASE_URL = "http://10.85.43.153:5000";
+import { BASE_URL } from "../config";
 
 export default function Login() {
   const [email, setEmail] = useState("");

@@ -488,7 +488,7 @@ export default function Index() {
       {/* CTA */}
       <TouchableOpacity
         style={styles.button}
-        onPress={() => router.push("/(tabs)/practice")}
+        onPress={() => router.push("/(tabs)/expense")}
         activeOpacity={0.8}
       >
         <Text style={styles.buttonText}>Get Started</Text>

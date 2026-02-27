@@ -3,9 +3,32 @@ import Expense from "../models/Expense.js";
 // CREATE
 export const createExpense = async (req, res) => {
   try {
+    const {
+      date,
+      vendorName,
+      category,
+      quantity,
+      unit,
+      ratePerUnit,
+      paymentMode,
+      projectTag,
+      notes,
+    } = req.body;
+
+    const totalAmount = Number(quantity) * Number(ratePerUnit);
+
     const expense = await Expense.create({
-      ...req.body,
       user: req.user._id,
+      date: date || Date.now(),
+      vendorName,
+      category,
+      quantity: Number(quantity),
+      unit,
+      ratePerUnit: Number(ratePerUnit),
+      totalAmount,
+      paymentMode,
+      projectTag,
+      notes,
     });
     res.status(201).json(expense);
   } catch (error) {

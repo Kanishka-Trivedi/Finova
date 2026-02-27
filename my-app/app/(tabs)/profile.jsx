@@ -4,8 +4,7 @@ import { AuthContext } from "../../context/AuthContext";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-
-const BASE_URL = "http://10.85.43.153:5000";
+import { BASE_URL } from "../../config";
 
 export default function Profile() {
   const { userToken, logout } = useContext(AuthContext);
