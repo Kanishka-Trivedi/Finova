@@ -28,18 +28,44 @@ const categoriesList = [
   "Steel",
   "Sand",
   "Bricks",
+  "Aggregate",
+  "Plumbing",
+  "Granite",
+  "Marble",
+  "Tiles",
+  "Color",
+  "Block",
   "Labor",
   "Equipment",
   "Transport",
   "Miscellaneous",
 ];
 
-const unitsList = ["Bags", "Kg", "Ton", "CFT", "Nos", "Trips", "Sqft", "Days", "Hours", "Liters"];
+const unitsList = ["Bags", "Kg", "Ton", "CFT", "Nos", "Trips", "Sqft", "Days", "Hours", "Liters", "Boxes", "Ltrs", "Brass"];
+
+const fixedUnits = {
+  Cement: "Bags",
+  Steel: "Kg",
+  Sand: "Ton",
+  Bricks: "Nos",
+  Aggregate: "Ton",
+  Tiles: "Boxes",
+  Color: "Ltrs",
+  Block: "Brass",
+  Granite: "Sqft",
+  Marble: "Sqft",
+};
+
+const transportUnits = ["Hours", "Days", "Trips"];
+const categoriesWithoutUnits = ["Labor", "Equipment", "Plumbing"];
+
+const steelSizes = ["8mm", "10mm", "12mm", "16mm", "20mm", "25mm", "Centering Wire"];
+const aggregateSizes = ["24 to 40mm", "40 to 60mm"];
 
 const paymentModes = ["Cash", "UPI", "Bank Transfer", "Cheque", "Credit"];
 
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const DAYS_OF_WEEK = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAYS_OF_WEEK = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 // ─── Dark-themed Date Picker ───
 function DatePickerModal({ visible, onClose, onSelect, selectedDate }) {
@@ -215,7 +241,11 @@ export default function Expense() {
   const [projectTag, setProjectTag] = useState("");
   const [notes, setNotes] = useState("");
 
-  const calculatedTotal =
+  const [manualTotal, setManualTotal] = useState("");
+  const [diameter, setDiameter] = useState("");
+  const [diameterDropdownVisible, setDiameterDropdownVisible] = useState(false);
+
+  const formattedCalculatedTotal =
     quantity && ratePerUnit
       ? (Number(quantity) * Number(ratePerUnit)).toFixed(2)
       : "0.00";
@@ -245,11 +275,13 @@ export default function Expense() {
     setPaymentMode("Cash");
     setProjectTag("");
     setNotes("");
+    setManualTotal("");
+    setDiameter("");
   };
 
   const handleAdd = async () => {
-    if (!vendorName || !category || !quantity || !unit || !ratePerUnit) {
-      Alert.alert("Missing Fields", "Please fill in vendor, category, quantity, unit, and rate.");
+    if (!vendorName || !category) {
+      Alert.alert("Missing Fields", "Please fill in vendor and category.");
       return;
     }
 
@@ -260,9 +292,11 @@ export default function Expense() {
           date,
           vendorName,
           category,
-          quantity: Number(quantity),
-          unit,
-          ratePerUnit: Number(ratePerUnit),
+          quantity: Number(quantity) || 0,
+          unit: unit || "None",
+          diameter,
+          ratePerUnit: Number(ratePerUnit) || 0,
+          totalAmount: Number(manualTotal) || Number(formattedCalculatedTotal), // Prioritize manual input
           paymentMode,
           projectTag,
           notes,
@@ -330,17 +364,19 @@ export default function Expense() {
   const chartColors = [
     "#4ADE80", "#38BDF8", "#FACC15", "#A78BFA",
     "#F472B6", "#FB923C", "#818CF8", "#F87171",
+    "#2DD4BF", "#A3E635", "#E879F9", "#FB7185",
+    "#C084FC", "#6366F1", "#14B8A6", "#F97316",
   ];
 
   const chartData =
     Object.keys(grouped).length > 0
       ? Object.keys(grouped).map((key, index) => ({
-          name: key,
-          amount: grouped[key],
-          color: chartColors[index % chartColors.length],
-          legendFontColor: "#fff",
-          legendFontSize: 12,
-        }))
+        name: key,
+        amount: grouped[key],
+        color: chartColors[index % chartColors.length],
+        legendFontColor: "#fff",
+        legendFontSize: 12,
+      }))
       : [];
 
   const renderItem = ({ item }) => (
@@ -361,7 +397,9 @@ export default function Expense() {
             <Text style={styles.cardAmount}>₹{item.totalAmount?.toLocaleString("en-IN")}</Text>
           </View>
           <View style={styles.cardMeta}>
-            <Text style={styles.cardCategory}>{item.category}</Text>
+            <Text style={styles.cardCategory}>
+              {item.category}{item.diameter ? ` (${item.diameter})` : ""}
+            </Text>
             <Text style={styles.cardDot}>•</Text>
             <Text style={styles.cardDetail}>{item.quantity} {item.unit} @ ₹{item.ratePerUnit}</Text>
           </View>
@@ -516,7 +554,16 @@ export default function Expense() {
                       styles.categoryChip,
                       category === cat && styles.activeCategoryChip,
                     ]}
-                    onPress={() => setCategory(cat)}
+                    onPress={() => {
+                      setCategory(cat);
+                      if (fixedUnits[cat]) {
+                        setUnit(fixedUnits[cat]);
+                      } else if (categoriesWithoutUnits.includes(cat)) {
+                        setUnit("None");
+                      } else {
+                        setUnit("");
+                      }
+                    }}
                   >
                     <Text
                       style={[
@@ -531,39 +578,74 @@ export default function Expense() {
               </View>
 
               {/* Quantity + Unit row */}
-              <View style={styles.row}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.fieldLabel}>Quantity</Text>
-                  <TextInput
-                    placeholder="0"
-                    placeholderTextColor="#aaa"
-                    value={quantity}
-                    onChangeText={setQuantity}
-                    keyboardType="numeric"
-                    style={styles.input}
-                  />
+              {!categoriesWithoutUnits.includes(category) && (
+                <View style={styles.row}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={styles.fieldLabel}>Quantity</Text>
+                    <TextInput
+                      placeholder="0"
+                      placeholderTextColor="#aaa"
+                      value={quantity}
+                      onChangeText={setQuantity}
+                      keyboardType="numeric"
+                      style={styles.input}
+                    />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 8 }}>
+                    <Text style={styles.fieldLabel}>Unit</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.input,
+                        styles.dropdownTrigger,
+                        fixedUnits[category] && { opacity: 0.7 }
+                      ]}
+                      onPress={() => {
+                        if (!fixedUnits[category]) {
+                          setUnitDropdownVisible(true);
+                        }
+                      }}
+                      disabled={!!fixedUnits[category]}
+                    >
+                      <Text style={{ color: unit ? "white" : "#aaa", fontSize: 15, flex: 1 }}>
+                        {unit || "Select unit"}
+                      </Text>
+                      {!fixedUnits[category] && <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>▼</Text>}
+                    </TouchableOpacity>
+                    <DropdownModal
+                      visible={unitDropdownVisible}
+                      onClose={() => setUnitDropdownVisible(false)}
+                      onSelect={setUnit}
+                      options={category === "Transport" ? transportUnits : unitsList}
+                      selected={unit}
+                      title="Select Unit"
+                    />
+                  </View>
                 </View>
-                <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={styles.fieldLabel}>Unit</Text>
+              )}
+
+              {/* Diameter Selection (Steel & Aggregate only) */}
+              {(category === "Steel" || category === "Aggregate") && (
+                <View>
+                  <Text style={styles.fieldLabel}>Size / Diameter</Text>
                   <TouchableOpacity
                     style={[styles.input, styles.dropdownTrigger]}
-                    onPress={() => setUnitDropdownVisible(true)}
+                    onPress={() => setDiameterDropdownVisible(true)}
                   >
-                    <Text style={{ color: unit ? "white" : "#aaa", fontSize: 15, flex: 1 }}>
-                      {unit || "Select unit"}
+                    <Text style={{ color: diameter ? "white" : "#aaa", fontSize: 15, flex: 1 }}>
+                      {diameter || "Select size"}
                     </Text>
                     <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>▼</Text>
                   </TouchableOpacity>
                   <DropdownModal
-                    visible={unitDropdownVisible}
-                    onClose={() => setUnitDropdownVisible(false)}
-                    onSelect={setUnit}
-                    options={unitsList}
-                    selected={unit}
-                    title="Select Unit"
+                    visible={diameterDropdownVisible}
+                    onClose={() => setDiameterDropdownVisible(false)}
+                    onSelect={setDiameter}
+                    options={category === "Steel" ? steelSizes : aggregateSizes}
+                    selected={diameter}
+                    title="Select Size"
                   />
                 </View>
-              </View>
+              )}
 
               {/* Rate per Unit */}
               <Text style={styles.fieldLabel}>Rate per Unit (₹)</Text>
@@ -576,11 +658,16 @@ export default function Expense() {
                 style={styles.input}
               />
 
-              {/* Auto-calculated Total */}
-              <View style={styles.totalCalcBox}>
-                <Text style={styles.totalCalcLabel}>Total Amount</Text>
-                <Text style={styles.totalCalcValue}>₹{calculatedTotal}</Text>
-              </View>
+              {/* Manual Total Amount */}
+              <Text style={styles.fieldLabel}>Total Amount (₹)</Text>
+              <TextInput
+                placeholder={formattedCalculatedTotal !== "0.00" ? `Suggestion: ₹${formattedCalculatedTotal}` : "Enter final amount"}
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                value={manualTotal}
+                onChangeText={setManualTotal}
+                keyboardType="numeric"
+                style={[styles.input, { borderBottomWidth: 1, borderBottomColor: "#4ADE80" }]}
+              />
 
               {/* Payment Mode */}
               <Text style={styles.fieldLabel}>Payment Mode</Text>
