@@ -20,6 +20,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { LinearGradient } from "expo-linear-gradient";
 import { AuthContext } from "../../context/AuthContext";
 import { BASE_URL } from "../../config";
+import { useRouter } from "expo-router";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -62,7 +63,7 @@ const categoriesWithoutUnits = ["Labor", "Equipment", "Plumbing"];
 const steelSizes = ["8mm", "10mm", "12mm", "16mm", "20mm", "25mm", "Centering Wire"];
 const aggregateSizes = ["24 to 40mm", "40 to 60mm"];
 
-const paymentModes = ["Cash", "UPI", "Bank Transfer", "Cheque", "Credit"];
+const paymentModes = ["Cash", "UPI", "Bank Transfer", "Cheque", "Credit Card"];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAYS_OF_WEEK = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -229,6 +230,7 @@ export default function Expense() {
   // Picker modals
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [unitDropdownVisible, setUnitDropdownVisible] = useState(false);
+  const router = useRouter();
 
   // Form state
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -348,7 +350,7 @@ export default function Expense() {
     return result;
   }, [expenses, selectedFilter, searchQuery]);
 
-  const totalAmount = expenses.reduce(
+  const totalAmountValue = expenses.reduce(
     (sum, item) => sum + (item.totalAmount || 0),
     0
   );
@@ -390,7 +392,16 @@ export default function Expense() {
         </TouchableOpacity>
       )}
     >
-      <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.7}
+        onPress={() => {
+          router.push({
+            pathname: "/expense-detail",
+            params: { ...item }
+          });
+        }}
+      >
         <View style={{ flex: 1 }}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardVendor}>{item.vendorName}</Text>
@@ -409,7 +420,7 @@ export default function Expense() {
             <Text style={styles.cardPayment}>{item.paymentMode}</Text>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     </Swipeable>
   );
 
@@ -424,11 +435,11 @@ export default function Expense() {
         {/* Total Card */}
         <View style={styles.totalBox}>
           <Text style={styles.totalLabel}>Total Expenses</Text>
-          <Text style={styles.totalAmount}>₹{totalAmount.toLocaleString("en-IN")}</Text>
+          <Text style={styles.totalAmount}>₹{totalAmountValue.toLocaleString("en-IN")}</Text>
         </View>
 
         {/* Chart */}
-        {chartData.length > 0 && (
+        {chartData.length > 0 ? (
           <View style={styles.chartWrapper}>
             <PieChart
               data={chartData}
@@ -446,7 +457,7 @@ export default function Expense() {
               center={[10, 0]}
             />
           </View>
-        )}
+        ) : null}
 
         {/* Search Bar */}
         <View style={styles.searchBar}>
@@ -458,11 +469,11 @@ export default function Expense() {
             onChangeText={setSearchQuery}
             style={styles.searchInput}
           />
-          {searchQuery.length > 0 && (
+          {searchQuery.length > 0 ? (
             <TouchableOpacity onPress={() => setSearchQuery("")}>
               <Text style={styles.searchClear}>✕</Text>
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
 
         {/* Compact Filter */}
@@ -578,7 +589,7 @@ export default function Expense() {
               </View>
 
               {/* Quantity + Unit row */}
-              {!categoriesWithoutUnits.includes(category) && (
+              {!categoriesWithoutUnits.includes(category) ? (
                 <View style={styles.row}>
                   <View style={{ flex: 1, marginRight: 8 }}>
                     <Text style={styles.fieldLabel}>Quantity</Text>
@@ -621,10 +632,10 @@ export default function Expense() {
                     />
                   </View>
                 </View>
-              )}
+              ) : null}
 
               {/* Diameter Selection (Steel & Aggregate only) */}
-              {(category === "Steel" || category === "Aggregate") && (
+              {(category === "Steel" || category === "Aggregate") ? (
                 <View>
                   <Text style={styles.fieldLabel}>Size / Diameter</Text>
                   <TouchableOpacity
@@ -645,7 +656,7 @@ export default function Expense() {
                     title="Select Size"
                   />
                 </View>
-              )}
+              ) : null}
 
               {/* Rate per Unit */}
               <Text style={styles.fieldLabel}>Rate per Unit (₹)</Text>

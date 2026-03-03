@@ -35,7 +35,7 @@ const expenseSchema = new mongoose.Schema({
   totalAmount: { type: Number, required: true },
   paymentMode: {
     type: String,
-    enum: ["Cash", "UPI", "Bank Transfer", "Cheque", "Credit"],
+    enum: ["Cash", "UPI", "Bank Transfer", "Cheque", "Credit Card"],
     default: "Cash",
   },
   projectTag: { type: String, default: "" },

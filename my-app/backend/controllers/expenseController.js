@@ -50,7 +50,7 @@ export const getExpenses = async (req, res) => {
 export const deleteExpense = async (req, res) => {
   try {
     const expense = await Expense.findById(req.params.id);
-    
+
     if (!expense) {
       return res.status(404).json({ message: "Expense not found" });
     }
@@ -61,6 +61,44 @@ export const deleteExpense = async (req, res) => {
 
     await Expense.findByIdAndDelete(req.params.id);
     res.status(200).json({ message: "Deleted" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// UPDATE
+export const updateExpense = async (req, res) => {
+  try {
+    const expense = await Expense.findById(req.params.id);
+
+    if (!expense) {
+      return res.status(404).json({ message: "Expense not found" });
+    }
+
+    // Check if the user owns the expense
+    if (expense.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: "User not authorized" });
+    }
+
+    const {
+      vendorName,
+      totalAmount,
+      notes,
+      projectTag,
+    } = req.body;
+
+    const updatedExpense = await Expense.findByIdAndUpdate(
+      req.params.id,
+      {
+        vendorName: vendorName || expense.vendorName,
+        totalAmount: totalAmount !== undefined ? totalAmount : expense.totalAmount,
+        notes: notes !== undefined ? notes : expense.notes,
+        projectTag: projectTag !== undefined ? projectTag : expense.projectTag,
+      },
+      { new: true } // Returns the modified document
+    );
+
+    res.status(200).json(updatedExpense);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

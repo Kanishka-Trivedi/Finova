@@ -21,13 +21,13 @@ function RootLayoutNav() {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === "(tabs)";
+    const segment = segments[0] as string;
+    const inAuthGroup = segment === "(tabs)" || segment === "expense-detail";
+    const onAuthPage = segment === "login" || segment === "register";
 
-    if (!userToken && inAuthGroup) {
-      // Redirect to login if not authenticated
+    if (!userToken && (inAuthGroup || !segment)) {
       router.replace("/login");
-    } else if (userToken && !inAuthGroup) {
-      // Redirect to tabs if authenticated
+    } else if (userToken && (onAuthPage || !segment)) {
       router.replace("/(tabs)");
     }
   }, [userToken, isLoading, segments]);
@@ -39,6 +39,7 @@ function RootLayoutNav() {
           <Stack.Screen name="login" />
           <Stack.Screen name="register" />
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="expense-detail" />
           <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal" }} />
         </Stack>
         <StatusBar style="auto" />
