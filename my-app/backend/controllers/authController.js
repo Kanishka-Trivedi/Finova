@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import cloudinary from "../config/cloudinary.js";
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || "secret123", {
@@ -283,5 +284,51 @@ export const updateUserProfile = async (req, res) => {
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+export const uploadProfilePhoto = async (req, res) => {
+  try {
+    const { image } = req.body; // base64 data URI
+    if (!image) return res.status(400).json({ message: "No image provided" });
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Delete old photo from Cloudinary if it exists
+    if (user.profilePhoto) {
+      try {
+        // Extract public_id from URL
+        const parts = user.profilePhoto.split("/");
+        const filenameWithExt = parts[parts.length - 1]; // e.g. "abc123.jpg"
+        const folder = parts[parts.length - 2]; // e.g. "profile_photos"
+        const publicId = `${folder}/${filenameWithExt.split(".")[0]}`;
+        await cloudinary.uploader.destroy(publicId);
+      } catch (delErr) {
+        console.log("Old photo delete warning:", delErr.message);
+      }
+    }
+
+    // Upload new image
+    const result = await cloudinary.uploader.upload(image, {
+      folder: "profile_photos",
+      transformation: [
+        { width: 400, height: 400, crop: "fill", gravity: "face" },
+        { quality: "auto", fetch_format: "auto" },
+      ],
+      overwrite: true,
+    });
+
+    // Save URL to user
+    user.profilePhoto = result.secure_url;
+    await user.save();
+
+    res.json({
+      profilePhoto: result.secure_url,
+      message: "Profile photo updated successfully",
+    });
+  } catch (error) {
+    console.error("Upload error:", error);
+    res.status(500).json({ message: error.message || "Upload failed" });
   }
 };
