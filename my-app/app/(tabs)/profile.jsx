@@ -1,71 +1,152 @@
 import React, { useContext, useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  ActivityIndicator,
+  SafeAreaView,
+} from "react-native";
 import { AuthContext } from "../../context/AuthContext";
+import { useSettings } from "../../context/SettingsContext";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { BASE_URL } from "../../config";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function Profile() {
   const { userToken, logout } = useContext(AuthContext);
-  const [user, setUser] = useState(null);
+  const { t, themeColors } = useSettings();
+  const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await axios.get(`${BASE_URL}/api/auth/profile`, {
-          headers: {
-            Authorization: `Bearer ${userToken}`,
-          },
-        });
-        setUser(res.data);
-      } catch (error) {
-        console.log("Error fetching profile", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (userToken) {
-      fetchProfile();
-    }
+    fetchProfile();
   }, [userToken]);
+
+  const fetchProfile = async () => {
+    try {
+      const res = await axios.get(`${BASE_URL}/api/auth/profile`, {
+        headers: { Authorization: `Bearer ${userToken}` },
+      });
+      setUserData(res.data);
+    } catch (error) {
+      console.log("Error fetching profile", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
     router.replace("/login");
   };
 
+  const MenuLink = ({ icon, label, onPress, color = "#4ADE80", sublabel }) => (
+    <TouchableOpacity
+      style={[styles.menuItem, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+      onPress={onPress}
+    >
+      <View style={[styles.menuIcon, { backgroundColor: `${color}15` }]}>
+        <Ionicons name={icon} size={22} color={color} />
+      </View>
+      <View style={styles.menuTextContainer}>
+        <Text style={[styles.menuLabel, { color: themeColors.text }]}>{label}</Text>
+        {sublabel && <Text style={[styles.menuSublabel, { color: themeColors.subtext }]}>{sublabel}</Text>}
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={themeColors.subtext} />
+    </TouchableOpacity>
+  );
+
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: "center" }]}>
-        <ActivityIndicator size="large" color="#4ADE80" />
+      <View style={[styles.container, { justifyContent: "center", backgroundColor: themeColors.background[0] }]}>
+        <ActivityIndicator size="large" color={themeColors.primary} />
       </View>
     );
   }
 
   return (
-    <LinearGradient
-      colors={["#0F2027", "#203A43", "#2C5364"]}
-      style={styles.container}
-    >
-      <View style={styles.header}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarText}>
-            {user?.name?.charAt(0).toUpperCase() || "U"}
-          </Text>
-        </View>
-        <Text style={styles.name}>{user?.name || "User"}</Text>
-        <Text style={styles.email}>{user?.email || "email@example.com"}</Text>
-      </View>
+    <LinearGradient colors={themeColors.background} style={styles.container}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-      <View style={styles.section}>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
+          {/* Header & Avatar */}
+          <View style={styles.header}>
+            <View style={styles.avatarWrapper}>
+              {userData?.profilePhoto ? (
+                <Image source={{ uri: userData.profilePhoto }} style={styles.avatarImg} />
+              ) : (
+                <View style={[styles.avatarPlaceholder, { backgroundColor: themeColors.primary }]}>
+                  <Text style={[styles.avatarText, { color: themeColors.background[0] }]}>{userData?.name?.charAt(0).toUpperCase()}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.displayName, { color: themeColors.text }]}>{userData?.name}</Text>
+            <Text style={[styles.displayEmail, { color: themeColors.subtext }]}>{userData?.email}</Text>
+          </View>
+
+          {/* Account Settings Section */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: themeColors.subtext }]}>{t('account_settings')}</Text>
+
+            <MenuLink
+              icon="person-outline"
+              label={t('builder_details')}
+              sublabel={t('builder_details_sublabel')}
+              onPress={() => router.push("/info")}
+            />
+
+            <MenuLink
+              icon="shield-checkmark-outline"
+              label={t('security')}
+              sublabel={t('security_sublabel')}
+              onPress={() => router.push("/security")}
+              color="#38BDF8"
+            />
+          </View>
+
+          {/* Preferences Section */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: themeColors.subtext }]}>{t('app_preferences')}</Text>
+
+            <MenuLink
+              icon="settings-outline"
+              label={t('app_settings')}
+              sublabel={t('app_settings_sublabel')}
+              onPress={() => router.push("/preferences")}
+              color="#FACC15"
+            />
+
+            <MenuLink
+              icon="cloud-upload-outline"
+              label={t('data_management')}
+              sublabel={t('data_management_sublabel')}
+              onPress={() => router.push("/data-management")}
+              color="#A78BFA"
+            />
+          </View>
+
+          {/* Danger Zone */}
+          <TouchableOpacity
+            style={[styles.logoutButton, { borderColor: `${themeColors.danger}40`, backgroundColor: `${themeColors.danger}10` }]}
+            onPress={handleLogout}
+          >
+            <MaterialCommunityIcons name="logout" size={20} color={themeColors.danger} />
+            <Text style={[styles.logoutText, { color: themeColors.danger }]}>{t('logout')}</Text>
+          </TouchableOpacity>
+
+          <View style={styles.footer}>
+            <Text style={[styles.footerText, { color: themeColors.subtext, opacity: 0.5 }]}>Native-PR v1.0.0</Text>
+          </View>
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </SafeAreaView>
     </LinearGradient>
   );
 }
@@ -73,56 +154,105 @@ export default function Profile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 20,
+    paddingTop: 40,
   },
   header: {
     alignItems: "center",
-    marginTop: 60,
     marginBottom: 40,
   },
-  avatarCircle: {
+  avatarWrapper: {
+    marginBottom: 15,
+  },
+  avatarPlaceholder: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "#4ADE80",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 20,
-    shadowColor: "#4ADE80",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
     elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  avatarImg: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
   },
   avatarText: {
     fontSize: 40,
     fontWeight: "bold",
-    color: "#0F2027",
   },
-  name: {
+  displayName: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "white",
-    marginBottom: 5,
+    fontWeight: "800",
   },
-  email: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.6)",
+  displayEmail: {
+    fontSize: 14,
+    marginTop: 4,
   },
   section: {
-    marginTop: 20,
+    marginBottom: 30,
   },
-  logoutButton: {
-    backgroundColor: "rgba(239, 68, 68, 0.2)",
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
+    marginBottom: 15,
+    paddingLeft: 5,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#EF4444",
-    padding: 15,
-    borderRadius: 15,
+  },
+  menuIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: "center",
     alignItems: "center",
   },
-  logoutText: {
-    color: "#EF4444",
-    fontWeight: "bold",
+  menuTextContainer: {
+    flex: 1,
+    marginLeft: 15,
+  },
+  menuLabel: {
     fontSize: 16,
+    fontWeight: "600",
+  },
+  menuSublabel: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    padding: 18,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 10,
+  },
+  logoutText: {
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  footer: {
+    marginTop: 40,
+    alignItems: "center",
+  },
+  footerText: {
+    fontSize: 12,
+    letterSpacing: 1,
   },
 });

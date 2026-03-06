@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import expenseRoutes from "./routes/expenseRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import dataRoutes from "./routes/dataRoutes.js";
 
 dotenv.config();
 
@@ -24,5 +25,6 @@ mongoose
 
 app.use("/api/auth", authRoutes);
 app.use("/expenses", expenseRoutes);
+app.use("/api/data", dataRoutes);
 
 app.listen(5000, () => console.log("Server running on port 5000"));

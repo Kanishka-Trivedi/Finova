@@ -17,6 +17,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
+import { useSettings } from "../context/SettingsContext";
 import { BASE_URL } from "../config";
 import axios from "axios";
 
@@ -26,6 +27,7 @@ export default function ExpenseDetail() {
     const params = useLocalSearchParams();
     const router = useRouter();
     const { userToken } = useContext(AuthContext);
+    const { t, themeColors, settings, currencySymbol } = useSettings();
 
     // Initial state from params
     const [expenseData, setExpenseData] = useState({
@@ -47,7 +49,7 @@ export default function ExpenseDetail() {
 
     const onShare = async () => {
         try {
-            const message = `Expense Receipt\n\nVendor: ${expenseData.vendorName}\nCategory: ${expenseData.category}\nAmount: ₹${expenseData.totalAmount.toLocaleString("en-IN")}\nDate: ${expenseData.date}\n\nGenerated via Native-PR`;
+            const message = `Expense Receipt\n\nVendor: ${expenseData.vendorName}\nCategory: ${expenseData.category}\nAmount: ${currencySymbol}${expenseData.totalAmount.toLocaleString(settings.language === 'English' ? 'en-US' : 'en-IN')}\nDate: ${expenseData.date}\n\nGenerated via Finova`;
             await Share.share({ message });
         } catch (error) {
             console.log(error.message);
@@ -109,40 +111,40 @@ export default function ExpenseDetail() {
     );
 
     return (
-        <LinearGradient colors={["#0F2027", "#203A43", "#2C5364"]} style={styles.container}>
+        <LinearGradient colors={themeColors.background} style={styles.container}>
             <SafeAreaView style={{ flex: 1 }}>
                 {/* Header Navigation */}
                 <View style={styles.header}>
                     <TouchableOpacity
                         onPress={() => router.back()}
-                        style={styles.backButton}
+                        style={[styles.backButton, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }]}
                     >
-                        <Ionicons name="chevron-back" size={28} color="white" />
+                        <Ionicons name="chevron-back" size={28} color={themeColors.text} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Details</Text>
-                    <TouchableOpacity onPress={onShare} style={styles.shareButton}>
-                        <Ionicons name="share-social-outline" size={24} color="white" />
+                    <Text style={[styles.headerTitle, { color: themeColors.text }]}>{t('details') || "Details"}</Text>
+                    <TouchableOpacity onPress={onShare} style={[styles.shareButton, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }]}>
+                        <Ionicons name="share-social-outline" size={24} color={themeColors.text} />
                     </TouchableOpacity>
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                     {/* Hero Section Card */}
                     <LinearGradient
-                        colors={["rgba(255,255,255,0.15)", "rgba(255,255,255,0.05)"]}
-                        style={styles.heroCard}
+                        colors={settings.theme === 'light' ? ['#FFFFFF', '#F8FAFC'] : ["rgba(255,255,255,0.08)", "rgba(255,255,255,0.02)"]}
+                        style={[styles.heroCard, { borderColor: themeColors.border }]}
                     >
                         <View style={styles.categoryBadge}>
                             <Text style={styles.categoryBadgeText}>{expenseData.category}</Text>
                         </View>
 
-                        <Text style={styles.vendorName}>{expenseData.vendorName}</Text>
+                        <Text style={[styles.vendorName, { color: themeColors.text }]}>{expenseData.vendorName}</Text>
                         <View style={styles.amountContainer}>
-                            <Text style={styles.currencySymbol}>₹</Text>
-                            <Text style={styles.amountText}>{expenseData.totalAmount.toLocaleString("en-IN")}</Text>
+                            <Text style={styles.currencySymbol}>{currencySymbol}</Text>
+                            <Text style={[styles.amountText, { color: themeColors.text }]}>{expenseData.totalAmount.toLocaleString(settings.language === 'English' ? 'en-US' : 'en-IN')}</Text>
                         </View>
 
                         <View style={styles.statusRow}>
-                            <View style={styles.paymentHighlight}>
+                            <View style={[styles.paymentHighlight, { backgroundColor: settings.theme === 'light' ? '#F0FDF4' : 'rgba(255, 255, 255, 0.04)' }]}>
                                 <Ionicons name="card-outline" size={14} color="#4ADE80" />
                                 <Text style={styles.paymentMethod}>{expenseData.paymentMode}</Text>
                             </View>
@@ -150,8 +152,8 @@ export default function ExpenseDetail() {
                     </LinearGradient>
 
                     {/* Detailed Stats Grid */}
-                    <View style={styles.statsCard}>
-                        <Text style={styles.sectionTitle}>Transaction Summary</Text>
+                    <View style={[styles.statsCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+                        <Text style={[styles.sectionTitle, { color: themeColors.text }]}>{t('transaction_summary') || "Transaction Summary"}</Text>
 
                         <View style={styles.statsGrid}>
                             <DetailItem
@@ -181,8 +183,8 @@ export default function ExpenseDetail() {
 
                             <DetailItem
                                 icon="pricetag-outline"
-                                label="Rate per Unit"
-                                value={`₹${expenseData.ratePerUnit.toLocaleString("en-IN")}`}
+                                label={t('rate_per_unit')}
+                                value={`${currencySymbol}${expenseData.ratePerUnit.toLocaleString(settings.language === 'English' ? 'en-US' : 'en-IN')}`}
                                 color="#A78BFA"
                             />
 
@@ -197,49 +199,49 @@ export default function ExpenseDetail() {
                         </View>
 
                         {/* Price Calculations */}
-                        <View style={styles.calculationBox}>
+                        <View style={[styles.calculationBox, { borderTopColor: themeColors.border }]}>
                             <View style={styles.calcRow}>
-                                <Text style={styles.calcLabel}>Base Price</Text>
-                                <Text style={styles.calcValue}>₹{(expenseData.ratePerUnit * (expenseData.quantity || 1)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
+                                <Text style={[styles.calcLabel, { color: themeColors.subtext }]}>Base Price</Text>
+                                <Text style={[styles.calcValue, { color: themeColors.text }]}>{currencySymbol}{(expenseData.ratePerUnit * (expenseData.quantity || 1)).toLocaleString(settings.language === 'English' ? 'en-US' : 'en-IN', { minimumFractionDigits: 2 })}</Text>
                             </View>
                             <View style={styles.calcRow}>
-                                <Text style={styles.calcLabel}>Tax (Inc. GST)</Text>
-                                <Text style={styles.calcValue}>₹{(expenseData.totalAmount - (expenseData.ratePerUnit * (expenseData.quantity || 1))).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
+                                <Text style={[styles.calcLabel, { color: themeColors.subtext }]}>Tax (Inc. GST)</Text>
+                                <Text style={[styles.calcValue, { color: themeColors.text }]}>{currencySymbol}{(expenseData.totalAmount - (expenseData.ratePerUnit * (expenseData.quantity || 1))).toLocaleString(settings.language === 'English' ? 'en-US' : 'en-IN', { minimumFractionDigits: 2 })}</Text>
                             </View>
-                            <View style={[styles.calcRow, styles.totalRow]}>
-                                <Text style={styles.totalLabelText}>Net Amount</Text>
-                                <Text style={styles.totalValueText}>₹{expenseData.totalAmount.toLocaleString("en-IN")}</Text>
+                            <View style={[styles.calcRow, styles.totalRow, { borderTopColor: themeColors.border }]}>
+                                <Text style={[styles.totalLabelText, { color: themeColors.text }]}>Net Amount</Text>
+                                <Text style={styles.totalValueText}>{currencySymbol}{expenseData.totalAmount.toLocaleString(settings.language === 'English' ? 'en-US' : 'en-IN')}</Text>
                             </View>
                         </View>
                     </View>
 
                     {/* Notes Section */}
                     {expenseData.notes && (
-                        <View style={styles.notesCard}>
+                        <View style={[styles.notesCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
                             <View style={styles.notesHeader}>
                                 <Ionicons name="document-text-outline" size={20} color="#4ADE80" />
-                                <Text style={styles.notesTitle}>Additional Notes</Text>
+                                <Text style={[styles.notesTitle, { color: themeColors.text }]}>{t('notes')}</Text>
                             </View>
-                            <Text style={styles.notesBody}>{expenseData.notes}</Text>
+                            <Text style={[styles.notesBody, { color: themeColors.subtext }]}>{expenseData.notes}</Text>
                         </View>
                     )}
 
                     {/* Action Buttons */}
                     <View style={styles.actionSection}>
                         <TouchableOpacity
-                            style={styles.editButton}
+                            style={[styles.editButton, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
                             onPress={() => {
                                 setEditForm({ ...expenseData });
                                 setIsEditModalVisible(true);
                             }}
                         >
-                            <Ionicons name="create-outline" size={20} color="white" />
-                            <Text style={styles.buttonText}>Edit Entry</Text>
+                            <Ionicons name="create-outline" size={20} color={themeColors.text} />
+                            <Text style={[styles.buttonText, { color: themeColors.text }]}>Edit Entry</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.downloadButton} onPress={onShare}>
-                            <Ionicons name="cloud-download-outline" size={20} color="white" />
-                            <Text style={styles.buttonText}>Export Receipt</Text>
+                        <TouchableOpacity style={[styles.downloadButton, { backgroundColor: themeColors.primary }]} onPress={onShare}>
+                            <Ionicons name="cloud-download-outline" size={20} color={themeColors.tabBar} />
+                            <Text style={[styles.buttonText, { color: themeColors.tabBar }]}>Export Receipt</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -253,59 +255,59 @@ export default function ExpenseDetail() {
                 {/* Edit Modal */}
                 <Modal visible={isEditModalVisible} animationType="slide" transparent>
                     <View style={styles.modalOverlay}>
-                        <LinearGradient colors={["#0F2027", "#203A43"]} style={styles.modalForm}>
-                            <Text style={styles.modalTitle}>Edit Expense</Text>
+                        <LinearGradient colors={themeColors.background} style={[styles.modalForm, { backgroundColor: themeColors.card }]}>
+                            <Text style={[styles.modalTitle, { color: themeColors.text }]}>{t('add_expense_title') || "Edit Expense"}</Text>
 
-                            <Text style={styles.modalLabel}>Vendor Name</Text>
+                            <Text style={[styles.modalLabel, { color: themeColors.subtext }]}>{t('vendor_name')}</Text>
                             <TextInput
-                                style={styles.modalInput}
+                                style={[styles.modalInput, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
                                 value={editForm.vendorName}
                                 onChangeText={(t) => setEditForm({ ...editForm, vendorName: t })}
                                 placeholder="Vendor Name"
-                                placeholderTextColor="#aaa"
+                                placeholderTextColor={themeColors.subtext}
                             />
 
-                            <Text style={styles.modalLabel}>Total Amount (₹)</Text>
+                            <Text style={[styles.modalLabel, { color: themeColors.subtext }]}>{t('total_amount_label')} ({currencySymbol})</Text>
                             <TextInput
-                                style={styles.modalInput}
+                                style={[styles.modalInput, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
                                 value={editForm.totalAmount.toString()}
                                 onChangeText={(t) => setEditForm({ ...editForm, totalAmount: t })}
                                 keyboardType="numeric"
                                 placeholder="Amount"
-                                placeholderTextColor="#aaa"
+                                placeholderTextColor={themeColors.subtext}
                             />
 
-                            <Text style={styles.modalLabel}>Project Tag</Text>
+                            <Text style={[styles.modalLabel, { color: themeColors.subtext }]}>{t('project_tag')}</Text>
                             <TextInput
-                                style={styles.modalInput}
+                                style={[styles.modalInput, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
                                 value={editForm.projectTag}
                                 onChangeText={(t) => setEditForm({ ...editForm, projectTag: t })}
                                 placeholder="Project Tag"
-                                placeholderTextColor="#aaa"
+                                placeholderTextColor={themeColors.subtext}
                             />
 
-                            <Text style={styles.modalLabel}>Notes</Text>
+                            <Text style={[styles.modalLabel, { color: themeColors.subtext }]}>{t('notes')}</Text>
                             <TextInput
-                                style={[styles.modalInput, { height: 80 }]}
+                                style={[styles.modalInput, { height: 80, backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
                                 value={editForm.notes}
                                 onChangeText={(t) => setEditForm({ ...editForm, notes: t })}
                                 multiline
                                 placeholder="Notes"
-                                placeholderTextColor="#aaa"
+                                placeholderTextColor={themeColors.subtext}
                             />
 
                             <View style={styles.modalActions}>
                                 <TouchableOpacity
-                                    style={styles.cancelBtn}
+                                    style={[styles.cancelBtn, { backgroundColor: themeColors.border }]}
                                     onPress={() => setIsEditModalVisible(false)}
                                 >
-                                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                                    <Text style={[styles.cancelBtnText, { color: themeColors.text }]}>{t('cancel')}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    style={styles.saveBtn}
+                                    style={[styles.saveBtn, { backgroundColor: themeColors.primary }]}
                                     onPress={handleUpdate}
                                 >
-                                    <Text style={styles.saveBtnText}>Save Changes</Text>
+                                    <Text style={[styles.saveBtnText, { color: themeColors.tabBar }]}>{t('save_changes')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </LinearGradient>

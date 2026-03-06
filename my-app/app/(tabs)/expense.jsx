@@ -17,8 +17,9 @@ import {
 } from "react-native";
 import { PieChart } from "react-native-chart-kit";
 import { Swipeable } from "react-native-gesture-handler";
-import { LinearGradient } from "expo-linear-gradient";
+import { LinearGradient as ExpoLinearGradient } from "expo-linear-gradient";
 import { AuthContext } from "../../context/AuthContext";
+import { useSettings } from "../../context/SettingsContext";
 import { BASE_URL } from "../../config";
 import { useRouter } from "expo-router";
 
@@ -70,6 +71,7 @@ const DAYS_OF_WEEK = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 // ─── Dark-themed Date Picker ───
 function DatePickerModal({ visible, onClose, onSelect, selectedDate }) {
+  const { themeColors } = useSettings();
   const today = new Date();
   const initial = selectedDate ? new Date(selectedDate) : today;
   const [viewYear, setViewYear] = useState(initial.getFullYear());
@@ -129,22 +131,22 @@ function DatePickerModal({ visible, onClose, onSelect, selectedDate }) {
   return (
     <Modal visible={visible} transparent animationType="fade">
       <Pressable style={dpStyles.overlay} onPress={onClose}>
-        <Pressable style={dpStyles.container} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={[dpStyles.container, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }]} onPress={(e) => e.stopPropagation()}>
           {/* Header */}
           <View style={dpStyles.header}>
-            <TouchableOpacity onPress={goPrev} style={dpStyles.navBtn}>
-              <Text style={dpStyles.navText}>‹</Text>
+            <TouchableOpacity onPress={goPrev} style={[dpStyles.navBtn, { backgroundColor: themeColors.border }]}>
+              <Text style={[dpStyles.navText, { color: themeColors.text }]}>‹</Text>
             </TouchableOpacity>
-            <Text style={dpStyles.monthYear}>{MONTHS[viewMonth]} {viewYear}</Text>
-            <TouchableOpacity onPress={goNext} style={dpStyles.navBtn}>
-              <Text style={dpStyles.navText}>›</Text>
+            <Text style={[dpStyles.monthYear, { color: themeColors.text }]}>{MONTHS[viewMonth]} {viewYear}</Text>
+            <TouchableOpacity onPress={goNext} style={[dpStyles.navBtn, { backgroundColor: themeColors.border }]}>
+              <Text style={[dpStyles.navText, { color: themeColors.text }]}>›</Text>
             </TouchableOpacity>
           </View>
 
           {/* Day-of-week headers */}
           <View style={dpStyles.weekRow}>
             {DAYS_OF_WEEK.map((d) => (
-              <Text key={d} style={dpStyles.weekDay}>{d}</Text>
+              <Text key={d} style={[dpStyles.weekDay, { color: themeColors.subtext }]}>{d}</Text>
             ))}
           </View>
 
@@ -155,16 +157,17 @@ function DatePickerModal({ visible, onClose, onSelect, selectedDate }) {
                 key={idx}
                 style={[
                   dpStyles.dayCell,
-                  isSelected(day) && dpStyles.dayCellSelected,
-                  isToday(day) && !isSelected(day) && dpStyles.dayCellToday,
+                  isSelected(day) && [dpStyles.dayCellSelected, { backgroundColor: themeColors.primary }],
+                  isToday(day) && !isSelected(day) && [dpStyles.dayCellToday, { borderColor: themeColors.primary }],
                 ]}
                 onPress={() => day && selectDay(day)}
                 disabled={!day}
               >
                 <Text style={[
                   dpStyles.dayText,
-                  isSelected(day) && dpStyles.dayTextSelected,
-                  isToday(day) && !isSelected(day) && dpStyles.dayTextToday,
+                  { color: day ? themeColors.text : "transparent" },
+                  isSelected(day) && [dpStyles.dayTextSelected, { color: themeColors.tabBar }],
+                  isToday(day) && !isSelected(day) && [dpStyles.dayTextToday, { color: themeColors.primary }],
                 ]}>
                   {day || ""}
                 </Text>
@@ -174,11 +177,11 @@ function DatePickerModal({ visible, onClose, onSelect, selectedDate }) {
 
           {/* Actions */}
           <View style={dpStyles.actions}>
-            <TouchableOpacity onPress={selectToday} style={dpStyles.todayBtn}>
-              <Text style={dpStyles.todayBtnText}>Today</Text>
+            <TouchableOpacity onPress={selectToday} style={[dpStyles.todayBtn, { backgroundColor: themeColors.border }]}>
+              <Text style={[dpStyles.todayBtnText, { color: themeColors.primary }]}>Today</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={confirmDate} style={dpStyles.confirmBtn}>
-              <Text style={dpStyles.confirmBtnText}>Confirm</Text>
+            <TouchableOpacity onPress={confirmDate} style={[dpStyles.confirmBtn, { backgroundColor: themeColors.primary }]}>
+              <Text style={[dpStyles.confirmBtnText, { color: themeColors.tabBar }]}>Confirm</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -189,28 +192,30 @@ function DatePickerModal({ visible, onClose, onSelect, selectedDate }) {
 
 // ─── Dark-themed Dropdown Picker ───
 function DropdownModal({ visible, onClose, onSelect, options, selected, title }) {
+  const { themeColors } = useSettings();
   return (
     <Modal visible={visible} transparent animationType="fade">
       <Pressable style={dpStyles.overlay} onPress={onClose}>
-        <Pressable style={ddStyles.container} onPress={(e) => e.stopPropagation()}>
-          <Text style={ddStyles.title}>{title}</Text>
+        <Pressable style={[ddStyles.container, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }]} onPress={(e) => e.stopPropagation()}>
+          <Text style={[ddStyles.title, { color: themeColors.text }]}>{title}</Text>
           <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
             {options.map((opt) => (
               <TouchableOpacity
                 key={opt}
                 style={[
                   ddStyles.option,
-                  selected === opt && ddStyles.optionActive,
+                  selected === opt && [ddStyles.optionActive, { backgroundColor: `${themeColors.primary}20` }],
                 ]}
                 onPress={() => { onSelect(opt); onClose(); }}
               >
                 <Text style={[
                   ddStyles.optionText,
-                  selected === opt && ddStyles.optionTextActive,
+                  { color: themeColors.text },
+                  selected === opt && [ddStyles.optionTextActive, { color: themeColors.primary }],
                 ]}>
                   {opt}
                 </Text>
-                {selected === opt && <Text style={ddStyles.check}>✓</Text>}
+                {selected === opt && <Text style={[ddStyles.check, { color: themeColors.primary }]}>✓</Text>}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -222,6 +227,7 @@ function DropdownModal({ visible, onClose, onSelect, options, selected, title })
 
 export default function Expense() {
   const { userToken } = useContext(AuthContext);
+  const { t, themeColors, settings, currencySymbol } = useSettings();
   const [expenses, setExpenses] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("All");
@@ -388,12 +394,12 @@ export default function Expense() {
           style={styles.deleteButton}
           onPress={() => deleteExpense(item._id)}
         >
-          <Text style={styles.deleteText}>Delete</Text>
+          <Text style={styles.deleteText}>{t('delete') || "Delete"}</Text>
         </TouchableOpacity>
       )}
     >
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: settings.theme === 'light' ? 1 : 0 }]}
         activeOpacity={0.7}
         onPress={() => {
           router.push({
@@ -404,20 +410,20 @@ export default function Expense() {
       >
         <View style={{ flex: 1 }}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardVendor}>{item.vendorName}</Text>
-            <Text style={styles.cardAmount}>₹{item.totalAmount?.toLocaleString("en-IN")}</Text>
+            <Text style={[styles.cardVendor, { color: themeColors.text }]}>{item.vendorName}</Text>
+            <Text style={styles.cardAmount}>{currencySymbol}{item.totalAmount?.toLocaleString(settings.language === 'English' ? 'en-US' : 'en-IN')}</Text>
           </View>
           <View style={styles.cardMeta}>
             <Text style={styles.cardCategory}>
               {item.category}{item.diameter ? ` (${item.diameter})` : ""}
             </Text>
-            <Text style={styles.cardDot}>•</Text>
-            <Text style={styles.cardDetail}>{item.quantity} {item.unit} @ ₹{item.ratePerUnit}</Text>
+            <Text style={[styles.cardDot, { color: themeColors.subtext }]}>•</Text>
+            <Text style={[styles.cardDetail, { color: themeColors.subtext }]}>{item.quantity} {item.unit} @ {currencySymbol}{item.ratePerUnit}</Text>
           </View>
           <View style={styles.cardFooter}>
-            <Text style={styles.cardDate}>{formatDate(item.date)}</Text>
+            <Text style={[styles.cardDate, { color: themeColors.subtext }]}>{formatDate(item.date)}</Text>
             {item.projectTag ? <Text style={styles.cardTag}>{item.projectTag}</Text> : null}
-            <Text style={styles.cardPayment}>{item.paymentMode}</Text>
+            <Text style={[styles.cardPayment, { color: themeColors.subtext }]}>{item.paymentMode}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -425,17 +431,17 @@ export default function Expense() {
   );
 
   return (
-    <LinearGradient
-      colors={["#0F2027", "#203A43", "#2C5364"]}
+    <ExpoLinearGradient
+      colors={themeColors.background}
       style={{ flex: 1 }}
     >
       <SafeAreaView style={styles.container}>
-        <Text style={styles.heading}>Expense Overview</Text>
+        <Text style={[styles.heading, { color: themeColors.text }]}>{t('expense_overview')}</Text>
 
         {/* Total Card */}
         <View style={styles.totalBox}>
-          <Text style={styles.totalLabel}>Total Expenses</Text>
-          <Text style={styles.totalAmount}>₹{totalAmountValue.toLocaleString("en-IN")}</Text>
+          <Text style={styles.totalLabel}>{t('total_expenses')}</Text>
+          <Text style={styles.totalAmount}>{currencySymbol}{totalAmountValue.toLocaleString(settings.language === 'English' ? 'en-US' : 'en-IN')}</Text>
         </View>
 
         {/* Chart */}
@@ -460,18 +466,18 @@ export default function Expense() {
         ) : null}
 
         {/* Search Bar */}
-        <View style={styles.searchBar}>
+        <View style={[styles.searchBar, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }]}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
-            placeholder="Search vendor or date..."
-            placeholderTextColor="rgba(255,255,255,0.4)"
+            placeholder={t('search_placeholder')}
+            placeholderTextColor={themeColors.subtext}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: themeColors.text }]}
           />
           {searchQuery.length > 0 ? (
             <TouchableOpacity onPress={() => setSearchQuery("")}>
-              <Text style={styles.searchClear}>✕</Text>
+              <Text style={[styles.searchClear, { color: themeColors.subtext }]}>✕</Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -508,34 +514,34 @@ export default function Expense() {
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 120 }}
           ListEmptyComponent={
-            <Text style={{ color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: 40 }}>
-              No expenses yet. Tap + to add one.
+            <Text style={{ color: themeColors.subtext, textAlign: "center", marginTop: 40 }}>
+              {t('no_expenses')}
             </Text>
           }
         />
 
         {/* FAB */}
         <TouchableOpacity
-          style={styles.fab}
+          style={[styles.fab, { backgroundColor: themeColors.primary }]}
           onPress={() => setModalVisible(true)}
         >
-          <Text style={styles.fabText}>+</Text>
+          <Text style={[styles.fabText, { color: themeColors.tabBar }]}>+</Text>
         </TouchableOpacity>
 
         {/* Add Expense Modal */}
         <Modal visible={modalVisible} animationType="slide">
-          <LinearGradient colors={["#0F2027", "#203A43"]} style={styles.modalContainer}>
+          <ExpoLinearGradient colors={themeColors.background} style={styles.modalContainer}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.modalHeading}>Add Expense</Text>
+              <Text style={[styles.modalHeading, { color: themeColors.text }]}>{t('add_expense_title')}</Text>
 
               {/* Date Picker */}
-              <Text style={styles.fieldLabel}>Date</Text>
+              <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('date') || "Date"}</Text>
               <TouchableOpacity
-                style={styles.input}
+                style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }]}
                 onPress={() => setDatePickerVisible(true)}
               >
-                <Text style={{ color: date ? "white" : "#aaa", fontSize: 15 }}>
-                  {date ? formatDate(date) : "Select date"}
+                <Text style={{ color: date ? themeColors.text : themeColors.subtext, fontSize: 15 }}>
+                  {date ? formatDate(date) : t('select_date') || "Select date"}
                 </Text>
               </TouchableOpacity>
               <DatePickerModal
@@ -546,23 +552,24 @@ export default function Expense() {
               />
 
               {/* Vendor Name */}
-              <Text style={styles.fieldLabel}>Vendor Name</Text>
+              <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('vendor_name')}</Text>
               <TextInput
                 placeholder="e.g. Ambuja Suppliers"
-                placeholderTextColor="#aaa"
+                placeholderTextColor={themeColors.subtext}
                 value={vendorName}
                 onChangeText={setVendorName}
-                style={styles.input}
+                style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
               />
 
               {/* Material Category */}
-              <Text style={styles.fieldLabel}>Material Category</Text>
+              <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('material_category')}</Text>
               <View style={styles.categoryGrid}>
                 {categoriesList.map((cat) => (
                   <TouchableOpacity
                     key={cat}
                     style={[
                       styles.categoryChip,
+                      { backgroundColor: themeColors.border },
                       category === cat && styles.activeCategoryChip,
                     ]}
                     onPress={() => {
@@ -579,7 +586,7 @@ export default function Expense() {
                     <Text
                       style={[
                         styles.categoryText,
-                        category === cat && styles.activeCategoryText,
+                        category === cat ? styles.activeCategoryText : { color: themeColors.text },
                       ]}
                     >
                       {cat}
@@ -592,22 +599,23 @@ export default function Expense() {
               {!categoriesWithoutUnits.includes(category) ? (
                 <View style={styles.row}>
                   <View style={{ flex: 1, marginRight: 8 }}>
-                    <Text style={styles.fieldLabel}>Quantity</Text>
+                    <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('quantity')}</Text>
                     <TextInput
                       placeholder="0"
-                      placeholderTextColor="#aaa"
+                      placeholderTextColor={themeColors.subtext}
                       value={quantity}
                       onChangeText={setQuantity}
                       keyboardType="numeric"
-                      style={styles.input}
+                      style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
                     />
                   </View>
                   <View style={{ flex: 1, marginLeft: 8 }}>
-                    <Text style={styles.fieldLabel}>Unit</Text>
+                    <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('unit')}</Text>
                     <TouchableOpacity
                       style={[
                         styles.input,
                         styles.dropdownTrigger,
+                        { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 },
                         fixedUnits[category] && { opacity: 0.7 }
                       ]}
                       onPress={() => {
@@ -617,10 +625,10 @@ export default function Expense() {
                       }}
                       disabled={!!fixedUnits[category]}
                     >
-                      <Text style={{ color: unit ? "white" : "#aaa", fontSize: 15, flex: 1 }}>
+                      <Text style={{ color: unit ? themeColors.text : themeColors.subtext, fontSize: 15, flex: 1 }}>
                         {unit || "Select unit"}
                       </Text>
-                      {!fixedUnits[category] && <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>▼</Text>}
+                      {!fixedUnits[category] && <Text style={{ color: themeColors.subtext, fontSize: 12 }}>▼</Text>}
                     </TouchableOpacity>
                     <DropdownModal
                       visible={unitDropdownVisible}
@@ -637,15 +645,15 @@ export default function Expense() {
               {/* Diameter Selection (Steel & Aggregate only) */}
               {(category === "Steel" || category === "Aggregate") ? (
                 <View>
-                  <Text style={styles.fieldLabel}>Size / Diameter</Text>
+                  <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{category === "Steel" ? "Diameter" : "Size"}</Text>
                   <TouchableOpacity
-                    style={[styles.input, styles.dropdownTrigger]}
+                    style={[styles.input, styles.dropdownTrigger, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }]}
                     onPress={() => setDiameterDropdownVisible(true)}
                   >
-                    <Text style={{ color: diameter ? "white" : "#aaa", fontSize: 15, flex: 1 }}>
+                    <Text style={{ color: diameter ? themeColors.text : themeColors.subtext, fontSize: 15, flex: 1 }}>
                       {diameter || "Select size"}
                     </Text>
-                    <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>▼</Text>
+                    <Text style={{ color: themeColors.subtext, fontSize: 12 }}>▼</Text>
                   </TouchableOpacity>
                   <DropdownModal
                     visible={diameterDropdownVisible}
@@ -659,35 +667,36 @@ export default function Expense() {
               ) : null}
 
               {/* Rate per Unit */}
-              <Text style={styles.fieldLabel}>Rate per Unit (₹)</Text>
+              <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('rate_per_unit')} ({currencySymbol})</Text>
               <TextInput
                 placeholder="0"
-                placeholderTextColor="#aaa"
+                placeholderTextColor={themeColors.subtext}
                 value={ratePerUnit}
                 onChangeText={setRatePerUnit}
                 keyboardType="numeric"
-                style={styles.input}
+                style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
               />
 
               {/* Manual Total Amount */}
-              <Text style={styles.fieldLabel}>Total Amount (₹)</Text>
+              <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('total_amount_label')} ({currencySymbol})</Text>
               <TextInput
-                placeholder={formattedCalculatedTotal !== "0.00" ? `Suggestion: ₹${formattedCalculatedTotal}` : "Enter final amount"}
-                placeholderTextColor="rgba(255,255,255,0.3)"
+                placeholder={formattedCalculatedTotal !== "0.00" ? `Suggestion: ${currencySymbol}${formattedCalculatedTotal}` : "Enter final amount"}
+                placeholderTextColor={themeColors.subtext}
                 value={manualTotal}
                 onChangeText={setManualTotal}
                 keyboardType="numeric"
-                style={[styles.input, { borderBottomWidth: 1, borderBottomColor: "#4ADE80" }]}
+                style={[styles.input, { backgroundColor: themeColors.card, borderBottomWidth: 1, borderBottomColor: "#4ADE80", borderWidth: 1, borderColor: themeColors.border, color: themeColors.text }]}
               />
 
               {/* Payment Mode */}
-              <Text style={styles.fieldLabel}>Payment Mode</Text>
+              <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('payment_mode')}</Text>
               <View style={styles.categoryGrid}>
                 {paymentModes.map((mode) => (
                   <TouchableOpacity
                     key={mode}
                     style={[
                       styles.categoryChip,
+                      { backgroundColor: themeColors.border },
                       paymentMode === mode && styles.activeCategoryChip,
                     ]}
                     onPress={() => setPaymentMode(mode)}
@@ -695,7 +704,7 @@ export default function Expense() {
                     <Text
                       style={[
                         styles.categoryText,
-                        paymentMode === mode && styles.activeCategoryText,
+                        paymentMode === mode ? styles.activeCategoryText : { color: themeColors.text },
                       ]}
                     >
                       {mode}
@@ -705,41 +714,41 @@ export default function Expense() {
               </View>
 
               {/* Project Tag */}
-              <Text style={styles.fieldLabel}>Project Tag</Text>
+              <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('project_tag')}</Text>
               <TextInput
                 placeholder="e.g. Site-A, Tower-3"
-                placeholderTextColor="#aaa"
+                placeholderTextColor={themeColors.subtext}
                 value={projectTag}
                 onChangeText={setProjectTag}
-                style={styles.input}
+                style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
               />
 
               {/* Notes */}
-              <Text style={styles.fieldLabel}>Notes</Text>
+              <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('notes')}</Text>
               <TextInput
                 placeholder="Additional details..."
-                placeholderTextColor="#aaa"
+                placeholderTextColor={themeColors.subtext}
                 value={notes}
                 onChangeText={setNotes}
-                style={[styles.input, { height: 80, textAlignVertical: "top" }]}
+                style={[styles.input, { height: 80, textAlignVertical: "top", backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
                 multiline
               />
 
               {/* Submit */}
-              <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
-                <Text style={styles.addButtonText}>Add Expense</Text>
+              <TouchableOpacity style={[styles.addButton, { backgroundColor: themeColors.primary }]} onPress={handleAdd}>
+                <Text style={[styles.addButtonText, { color: themeColors.tabBar }]}>{t('add_expense_btn')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => { setModalVisible(false); resetForm(); }}>
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={[styles.cancelText, { color: themeColors.subtext }]}>{t('cancel')}</Text>
               </TouchableOpacity>
 
               <View style={{ height: 40 }} />
             </ScrollView>
-          </LinearGradient>
+          </ExpoLinearGradient>
         </Modal>
       </SafeAreaView>
-    </LinearGradient>
+    </ExpoLinearGradient>
   );
 }
 
