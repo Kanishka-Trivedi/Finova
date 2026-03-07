@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import expenseRoutes from "./routes/expenseRoutes.js";
+import incomeRoutes from "./routes/incomeRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import dataRoutes from "./routes/dataRoutes.js";
 
@@ -26,6 +27,7 @@ mongoose
 
 app.use("/api/auth", authRoutes);
 app.use("/expenses", expenseRoutes);
+app.use("/incomes", incomeRoutes);
 app.use("/api/data", dataRoutes);
 
 app.listen(5000, () => console.log("Server running on port 5000"));
