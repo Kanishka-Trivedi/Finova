@@ -128,7 +128,7 @@ export default function Profile() {
   };
 
   /* ─── Menu Link Component ─── */
-  const MenuLink = ({ icon, label, onPress, color = "#4ADE80", sublabel }) => (
+  const MenuLink = ({ icon, label, onPress, color = "#5B8A72", sublabel }) => (
     <TouchableOpacity
       style={[styles.menuItem, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
       onPress={onPress}
@@ -166,106 +166,100 @@ export default function Profile() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
       >
-        {/* ──── Avatar & Info ──── */}
-        <View style={styles.header}>
+        {/* ──── Hero Header ──── */}
+        <LinearGradient
+          colors={isDark ? ["rgba(91,138,114,0.15)", "rgba(91,138,114,0.05)"] : ["#FFFFFF", "#F0F9FF"]}
+          style={[styles.heroCard, { borderColor: themeColors.border }]}
+        >
           <TouchableOpacity
             style={styles.avatarWrapper}
             onPress={() => setShowPhotoSheet(true)}
             activeOpacity={0.8}
             disabled={uploading}
           >
-            {/* Outer glow ring */}
-            <View style={[styles.avatarRing, { borderColor: `${themeColors.primary}35` }]}>
+            <View style={[styles.avatarRing, { borderColor: "#5B8A7250" }]}>
               {uploading ? (
-                <View style={[styles.avatarInner, { backgroundColor: `${themeColors.primary}20` }]}>
-                  <ActivityIndicator size="large" color={themeColors.primary} />
-                </View>
+                <ActivityIndicator size="small" color="#5B8A72" />
               ) : userData?.profilePhoto ? (
                 <Image source={{ uri: userData.profilePhoto }} style={styles.avatarImg} />
               ) : (
-                <View style={[styles.avatarInner, { backgroundColor: themeColors.primary }]}>
-                  <Text style={[styles.avatarText, { color: isDark ? "#0F2027" : "#fff" }]}>
+                <View style={[styles.avatarInner, { backgroundColor: "#5B8A72" }]}>
+                  <Text style={styles.avatarText}>
                     {userData?.name?.charAt(0).toUpperCase()}
                   </Text>
                 </View>
               )}
-            </View>
-
-            {/* Camera badge */}
-            <View
-              style={[
-                styles.cameraBadge,
-                {
-                  backgroundColor: themeColors.primary,
-                  borderColor: themeColors.background[0],
-                },
-              ]}
-            >
-              <Ionicons name="camera" size={14} color={isDark ? "#0F2027" : "#fff"} />
+              <View style={styles.cameraBadge}>
+                <Ionicons name="camera" size={12} color="#fff" />
+              </View>
             </View>
           </TouchableOpacity>
 
-          <Text style={[styles.displayName, { color: themeColors.text }]}>{userData?.name}</Text>
-          <Text style={[styles.displayEmail, { color: themeColors.subtext }]}>{userData?.email}</Text>
+          <View style={styles.heroInfo}>
+            <Text style={[styles.displayName, { color: themeColors.text }]}>{userData?.name}</Text>
+            <View style={styles.emailRow}>
+              <Ionicons name="mail-outline" size={14} color={themeColors.subtext} />
+              <Text style={[styles.displayEmail, { color: themeColors.subtext }]}>{userData?.email}</Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* ──── Settings Groups ──── */}
+        <View style={styles.menuContainer}>
+          <Text style={[styles.sectionHeading, { color: themeColors.subtext }]}>{t("account_settings")}</Text>
+
+          <View style={[styles.groupCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            <MenuLink
+              icon="person-outline"
+              label={t("builder_details")}
+              sublabel={t("builder_details_sublabel")}
+              onPress={() => router.push("/info")}
+              color="#5B8A72" // Teal
+            />
+            <View style={[styles.divider, { backgroundColor: themeColors.border }]} />
+            <MenuLink
+              icon="shield-checkmark-outline"
+              label={t("security")}
+              sublabel={t("security_sublabel")}
+              onPress={() => router.push("/security")}
+              color="#0EA5E9" // Sky Blue
+            />
+          </View>
+
+          <Text style={[styles.sectionHeading, { color: themeColors.subtext }]}>{t("app_preferences")}</Text>
+          <View style={[styles.groupCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            <MenuLink
+              icon="settings-outline"
+              label={t("app_settings")}
+              sublabel={t("app_settings_sublabel")}
+              onPress={() => router.push("/preferences")}
+              color="#F59E0B" // Amber/Gold
+            />
+            <View style={[styles.divider, { backgroundColor: themeColors.border }]} />
+            <MenuLink
+              icon="cloud-upload-outline"
+              label={t("data_management")}
+              sublabel={t("data_management_sublabel")}
+              onPress={() => router.push("/data-management")}
+              color="#A855F7" // Purple
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.logoutBtn, { borderColor: `${themeColors.danger}30` }]}
+            onPress={handleLogout}
+          >
+            <Ionicons name="log-out-outline" size={20} color={themeColors.danger} />
+            <Text style={[styles.logoutText, { color: themeColors.danger }]}>{t("logout")}</Text>
+          </TouchableOpacity>
         </View>
-
-        {/* ──── Account Settings ──── */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: themeColors.subtext }]}>{t("account_settings")}</Text>
-
-          <MenuLink
-            icon="person-outline"
-            label={t("builder_details")}
-            sublabel={t("builder_details_sublabel")}
-            onPress={() => router.push("/info")}
-          />
-
-          <MenuLink
-            icon="shield-checkmark-outline"
-            label={t("security")}
-            sublabel={t("security_sublabel")}
-            onPress={() => router.push("/security")}
-            color="#38BDF8"
-          />
-        </View>
-
-        {/* ──── Preferences ──── */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: themeColors.subtext }]}>{t("app_preferences")}</Text>
-
-          <MenuLink
-            icon="settings-outline"
-            label={t("app_settings")}
-            sublabel={t("app_settings_sublabel")}
-            onPress={() => router.push("/preferences")}
-            color="#FACC15"
-          />
-
-          <MenuLink
-            icon="cloud-upload-outline"
-            label={t("data_management")}
-            sublabel={t("data_management_sublabel")}
-            onPress={() => router.push("/data-management")}
-            color="#A78BFA"
-          />
-        </View>
-
-        {/* ──── Logout ──── */}
-        <TouchableOpacity
-          style={[styles.logoutButton, { borderColor: `${themeColors.danger}40`, backgroundColor: `${themeColors.danger}10` }]}
-          onPress={handleLogout}
-          activeOpacity={0.7}
-        >
-          <MaterialCommunityIcons name="logout" size={20} color={themeColors.danger} />
-          <Text style={[styles.logoutText, { color: themeColors.danger }]}>{t("logout")}</Text>
-        </TouchableOpacity>
 
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: themeColors.subtext, opacity: 0.4 }]}>
-            Finova v1.0.0
+          <Text style={[styles.footerText, { color: themeColors.subtext }]}>
+            Finova Enterprise • Version 1.0.0
           </Text>
         </View>
-        <View style={{ height: 40 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* ──── Photo Options Bottom Sheet ──── */}
@@ -290,8 +284,8 @@ export default function Profile() {
                   onPress={() => pickImage(true)}
                   activeOpacity={0.6}
                 >
-                  <View style={[styles.sheetIconWrap, { backgroundColor: "#4ADE8015" }]}>
-                    <Ionicons name="camera-outline" size={22} color="#4ADE80" />
+                  <View style={[styles.sheetIconWrap, { backgroundColor: "#5B8A7215" }]}>
+                    <Ionicons name="camera-outline" size={22} color="#5B8A72" />
                   </View>
                   <Text style={[styles.sheetOptionText, { color: themeColors.text }]}>Take Photo</Text>
                 </TouchableOpacity>
@@ -301,8 +295,8 @@ export default function Profile() {
                   onPress={() => pickImage(false)}
                   activeOpacity={0.6}
                 >
-                  <View style={[styles.sheetIconWrap, { backgroundColor: "#38BDF815" }]}>
-                    <Ionicons name="images-outline" size={22} color="#38BDF8" />
+                  <View style={[styles.sheetIconWrap, { backgroundColor: "#3B6F8A15" }]}>
+                    <Ionicons name="images-outline" size={22} color="#3B6F8A" />
                   </View>
                   <Text style={[styles.sheetOptionText, { color: themeColors.text }]}>Choose from Gallery</Text>
                 </TouchableOpacity>
@@ -342,91 +336,102 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 40,
   },
-
-  /* ── Header / Avatar ── */
-  header: {
+  /* ──── Hero Section ──── */
+  heroCard: {
+    padding: 24,
+    borderRadius: 32,
+    borderWidth: 1,
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 36,
+    marginBottom: 24,
+    marginTop: 10,
   },
   avatarWrapper: {
-    marginBottom: 14,
     position: "relative",
   },
   avatarRing: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    borderWidth: 3,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    borderWidth: 2,
     justifyContent: "center",
     alignItems: "center",
     padding: 3,
   },
   avatarInner: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     justifyContent: "center",
     alignItems: "center",
   },
   avatarImg: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
   },
   avatarText: {
-    fontSize: 40,
+    fontSize: 28,
     fontWeight: "800",
+    color: "#fff",
   },
   cameraBadge: {
     position: "absolute",
-    bottom: 4,
-    right: 4,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    bottom: 2,
+    right: 2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#5B8A72",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 3,
-    elevation: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  heroInfo: {
+    marginLeft: 20,
+    flex: 1,
   },
   displayName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
-    letterSpacing: -0.3,
+    marginBottom: 4,
+  },
+  emailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    opacity: 0.7,
   },
   displayEmail: {
     fontSize: 14,
-    marginTop: 4,
-    opacity: 0.6,
+    fontWeight: "500",
   },
 
-  /* ── Sections ── */
-  section: {
-    marginBottom: 28,
+  /* ──── Menu List ──── */
+  menuContainer: {
+    gap: 12,
   },
-  sectionTitle: {
+  sectionHeading: {
     fontSize: 12,
     fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 1.5,
-    marginBottom: 14,
-    paddingLeft: 5,
+    letterSpacing: 1,
+    marginLeft: 4,
+    marginTop: 10,
+    marginBottom: 4,
   },
-
-  /* ── Menu Items ── */
+  groupCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    borderRadius: 20,
-    marginBottom: 10,
-    borderWidth: 1,
+    padding: 18,
   },
   menuIcon: {
     width: 44,
@@ -436,99 +441,102 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   menuTextContainer: {
+    marginLeft: 16,
     flex: 1,
-    marginLeft: 14,
   },
   menuLabel: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   menuSublabel: {
     fontSize: 12,
     marginTop: 2,
-    opacity: 0.6,
+    opacity: 0.8,
+  },
+  divider: {
+    height: 1,
+    marginHorizontal: 18,
   },
 
-  /* ── Logout ── */
-  logoutButton: {
+  /* ──── Actions ──── */
+  logoutBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    padding: 18,
+    paddingVertical: 18,
     borderRadius: 20,
     borderWidth: 1,
-    marginTop: 6,
+    marginTop: 24,
+    gap: 10,
   },
   logoutText: {
+    fontSize: 16,
     fontWeight: "700",
-    fontSize: 15,
   },
 
-  /* ── Footer ── */
   footer: {
-    marginTop: 36,
+    marginTop: 40,
     alignItems: "center",
   },
   footerText: {
-    fontSize: 11,
-    letterSpacing: 1.2,
+    fontSize: 12,
     fontWeight: "500",
+    opacity: 0.5,
+    letterSpacing: 0.5,
   },
 
-  /* ── Photo Bottom Sheet ── */
+  /* ──── Bottom Sheet ──── */
   sheetOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
   },
   sheetCard: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 20,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
   },
   sheetHandle: {
     width: 40,
     height: 4,
     borderRadius: 2,
     alignSelf: "center",
-    marginBottom: 18,
+    marginBottom: 20,
   },
   sheetTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 16,
-    paddingLeft: 4,
+    fontWeight: "800",
+    marginBottom: 20,
+    textAlign: "center",
   },
   sheetOption: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 12,
   },
   sheetIconWrap: {
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 14,
+    marginRight: 15,
   },
   sheetOptionText: {
     fontSize: 16,
     fontWeight: "600",
   },
   sheetCancel: {
-    marginTop: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
+    marginTop: 10,
+    padding: 16,
+    borderRadius: 16,
     alignItems: "center",
   },
   sheetCancelText: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

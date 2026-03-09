@@ -14,6 +14,7 @@ import {
   Alert,
   Platform,
   Pressable,
+  BackHandler,
 } from "react-native";
 import { PieChart } from "react-native-chart-kit";
 import { Swipeable } from "react-native-gesture-handler";
@@ -22,6 +23,7 @@ import { AuthContext } from "../../context/AuthContext";
 import { useSettings } from "../../context/SettingsContext";
 import { BASE_URL } from "../../config";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -227,7 +229,7 @@ function DropdownModal({ visible, onClose, onSelect, options, selected, title })
 
 export default function Expense() {
   const { userToken } = useContext(AuthContext);
-  const { t, themeColors, settings, currencySymbol } = useSettings();
+  const { t, themeColors, settings, currencySymbol, formatAmount, convertToBase } = useSettings();
   const [expenses, setExpenses] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("All");
@@ -253,10 +255,40 @@ export default function Expense() {
   const [diameter, setDiameter] = useState("");
   const [diameterDropdownVisible, setDiameterDropdownVisible] = useState(false);
 
-  const formattedCalculatedTotal =
-    quantity && ratePerUnit
-      ? (Number(quantity) * Number(ratePerUnit)).toFixed(2)
-      : "0.00";
+  const formattedCalculatedTotal = useMemo(() => {
+    const r = Number(ratePerUnit) || 0;
+    const q = Number(quantity) || (categoriesWithoutUnits.includes(category) ? 1 : 0);
+
+    if (r > 0 && q > 0) {
+      return (q * r).toFixed(2);
+    }
+    return "0.00";
+  }, [quantity, ratePerUnit, category]);
+
+  // Auto-fill manualTotal for unit-less categories when rate is entered
+  useEffect(() => {
+    if (categoriesWithoutUnits.includes(category) && ratePerUnit && !manualTotal) {
+      setManualTotal(ratePerUnit);
+    }
+  }, [ratePerUnit, category]);
+
+  useEffect(() => {
+    const backAction = () => {
+      if (modalVisible) {
+        setModalVisible(false);
+        resetForm();
+        return true;
+      }
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, [modalVisible]);
 
   useEffect(() => {
     if (userToken) fetchExpenses();
@@ -288,27 +320,57 @@ export default function Expense() {
   };
 
   const handleAdd = async () => {
-    if (!vendorName || !category) {
-      Alert.alert("Missing Fields", "Please fill in vendor and category.");
+    const trimmedVendor = vendorName?.trim();
+    if (!trimmedVendor || !category) {
+      Alert.alert("Missing Fields", "Please enter a vendor name and select a category.");
+      return;
+    }
+
+    // Capture values directly to avoid any state sync race conditions
+    const isNoUnit = categoriesWithoutUnits.includes(category);
+    const rawRate = Number(ratePerUnit) || 0;
+    const rawManual = Number(manualTotal) || 0;
+    const rawQuantity = Number(quantity) || (isNoUnit ? 1 : 0);
+
+    // For unit-less categories, only the manualTotal (Total Amount field) matters
+    let definitiveTotal = rawManual;
+    let finalRate = rawRate;
+
+    if (isNoUnit) {
+      definitiveTotal = rawManual;
+      finalRate = rawManual; // Set rate to total for consistency in detail page
+    } else {
+      definitiveTotal = rawManual || (rawRate * rawQuantity);
+    }
+
+    if (definitiveTotal <= 0) {
+      Alert.alert(
+        "Invalid Amount",
+        isNoUnit
+          ? "Please enter the total amount."
+          : "Total amount must be greater than 0. Please enter a rate or a manual total."
+      );
       return;
     }
 
     try {
+      const payload = {
+        date,
+        vendorName: trimmedVendor,
+        category,
+        quantity: isNoUnit ? 1 : rawQuantity,
+        unit: unit || "None",
+        diameter,
+        ratePerUnit: convertToBase(isNoUnit ? definitiveTotal : (rawRate || definitiveTotal)),
+        totalAmount: convertToBase(definitiveTotal),
+        paymentMode,
+        projectTag: projectTag?.trim(),
+        notes: notes?.trim(),
+      };
+
       const res = await axios.post(
         `${BASE_URL}/expenses`,
-        {
-          date,
-          vendorName,
-          category,
-          quantity: Number(quantity) || 0,
-          unit: unit || "None",
-          diameter,
-          ratePerUnit: Number(ratePerUnit) || 0,
-          totalAmount: Number(manualTotal) || Number(formattedCalculatedTotal), // Prioritize manual input
-          paymentMode,
-          projectTag,
-          notes,
-        },
+        payload,
         { headers: { Authorization: `Bearer ${userToken}` } }
       );
 
@@ -316,8 +378,8 @@ export default function Expense() {
       setModalVisible(false);
       resetForm();
     } catch (error) {
-      console.log("Add error:", error.message);
-      Alert.alert("Error", error.response?.data?.message || "Failed to add expense");
+      console.log("Add expense error details:", error.response?.data || error.message);
+      Alert.alert("Error", error.response?.data?.message || "Failed to add expense. Please try again.");
     }
   };
 
@@ -370,65 +432,77 @@ export default function Expense() {
   }, [expenses]);
 
   const chartColors = [
-    "#4ADE80", "#38BDF8", "#FACC15", "#A78BFA",
-    "#F472B6", "#FB923C", "#818CF8", "#F87171",
-    "#2DD4BF", "#A3E635", "#E879F9", "#FB7185",
-    "#C084FC", "#6366F1", "#14B8A6", "#F97316",
+    "#34D399", "#38BDF8", "#FBBF24", "#F87171",
+    "#A78BFA", "#2DD4BF", "#FB923C", "#818CF8",
+    "#F472B6", "#4ADE80", "#E879F9", "#22D3EE",
+    "#FACC15", "#6366F1", "#14B8A6", "#F97316",
   ];
+
+  const categoryColors = {
+    Cement: "#34D399", Steel: "#38BDF8", Sand: "#FBBF24", Bricks: "#F87171",
+    Aggregate: "#A78BFA", Plumbing: "#2DD4BF", Granite: "#FB923C", Marble: "#818CF8",
+    Tiles: "#F472B6", Color: "#4ADE80", Block: "#E879F9", Labor: "#22D3EE",
+    Equipment: "#FACC15", Transport: "#6366F1", Miscellaneous: "#14B8A6",
+  };
 
   const chartData =
     Object.keys(grouped).length > 0
       ? Object.keys(grouped).map((key, index) => ({
         name: key,
         amount: grouped[key],
-        color: chartColors[index % chartColors.length],
-        legendFontColor: "#fff",
+        color: categoryColors[key] || chartColors[index % chartColors.length],
+        legendFontColor: settings.theme === 'light' ? "#4A4A4A" : "#fff",
         legendFontSize: 12,
       }))
       : [];
 
-  const renderItem = ({ item }) => (
-    <Swipeable
-      renderRightActions={() => (
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => deleteExpense(item._id)}
-        >
-          <Text style={styles.deleteText}>{t('delete') || "Delete"}</Text>
-        </TouchableOpacity>
-      )}
-    >
-      <TouchableOpacity
-        style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: settings.theme === 'light' ? 1 : 0 }]}
-        activeOpacity={0.7}
-        onPress={() => {
-          router.push({
-            pathname: "/expense-detail",
-            params: { ...item }
-          });
-        }}
+  const renderItem = ({ item }) => {
+    const catColor = categoryColors[item.category] || "#5B8A72";
+    return (
+      <Swipeable
+        renderRightActions={() => (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => deleteExpense(item._id)}
+          >
+            <Text style={styles.deleteText}>{t('delete') || "Delete"}</Text>
+          </TouchableOpacity>
+        )}
       >
-        <View style={{ flex: 1 }}>
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardVendor, { color: themeColors.text }]}>{item.vendorName}</Text>
-            <Text style={styles.cardAmount}>{currencySymbol}{item.totalAmount?.toLocaleString(settings.language === 'English' ? 'en-US' : 'en-IN')}</Text>
+        <TouchableOpacity
+          style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: settings.theme === 'light' ? 1 : 0 }]}
+          activeOpacity={0.7}
+          onPress={() => {
+            router.push({
+              pathname: "/expense-detail",
+              params: { ...item }
+            });
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.cardVendor, { color: themeColors.text }]}>{item.vendorName}</Text>
+              <Text style={styles.cardAmount}>{formatAmount(item.totalAmount)}</Text>
+            </View>
+            <View style={styles.cardMeta}>
+              <View style={{ backgroundColor: `${catColor}18`, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+                <Text style={{ color: catColor, fontSize: 12, fontWeight: "600" }}>
+                  {item.category}{item.diameter ? ` (${item.diameter})` : ""}
+                </Text>
+              </View>
+              <Text style={[styles.cardDot, { color: themeColors.subtext }]}>•</Text>
+              <Text style={[styles.cardDetail, { color: themeColors.subtext }]}>{item.quantity} {item.unit} @ {formatAmount(item.ratePerUnit)}</Text>
+            </View>
+            <View style={styles.cardFooter}>
+              <Text style={[styles.cardDate, { color: themeColors.subtext }]}>{formatDate(item.date)}</Text>
+              {item.projectTag ? <Text style={[styles.cardTag, { backgroundColor: `${catColor}15`, color: catColor, borderColor: `${catColor}30`, borderWidth: 0.5 }]}>{item.projectTag}</Text> : null}
+              <Text style={[styles.cardPayment, { color: themeColors.subtext }]}>{item.paymentMode}</Text>
+            </View>
           </View>
-          <View style={styles.cardMeta}>
-            <Text style={styles.cardCategory}>
-              {item.category}{item.diameter ? ` (${item.diameter})` : ""}
-            </Text>
-            <Text style={[styles.cardDot, { color: themeColors.subtext }]}>•</Text>
-            <Text style={[styles.cardDetail, { color: themeColors.subtext }]}>{item.quantity} {item.unit} @ {currencySymbol}{item.ratePerUnit}</Text>
-          </View>
-          <View style={styles.cardFooter}>
-            <Text style={[styles.cardDate, { color: themeColors.subtext }]}>{formatDate(item.date)}</Text>
-            {item.projectTag ? <Text style={styles.cardTag}>{item.projectTag}</Text> : null}
-            <Text style={[styles.cardPayment, { color: themeColors.subtext }]}>{item.paymentMode}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    </Swipeable>
-  );
+        </TouchableOpacity>
+      </Swipeable>
+    );
+  };
 
   return (
     <ExpoLinearGradient
@@ -439,22 +513,27 @@ export default function Expense() {
         <Text style={[styles.heading, { color: themeColors.text }]}>{t('expense_overview')}</Text>
 
         {/* Total Card */}
-        <View style={styles.totalBox}>
-          <Text style={styles.totalLabel}>{t('total_expenses')}</Text>
-          <Text style={styles.totalAmount}>{currencySymbol}{totalAmountValue.toLocaleString(settings.language === 'English' ? 'en-US' : 'en-IN')}</Text>
+        <View style={[styles.totalBox, { backgroundColor: "#5B8A72", padding: 20 }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.18)", justifyContent: "center", alignItems: "center" }}>
+              <Ionicons name="arrow-up-outline" size={20} color="#fff" />
+            </View>
+            <Text style={[styles.totalLabel, { color: "rgba(255,255,255,0.85)" }]}>{t('total_expenses')}</Text>
+          </View>
+          <Text style={[styles.totalAmount, { color: "#fff", fontSize: 28, marginTop: 4 }]}>{formatAmount(totalAmountValue)}</Text>
         </View>
 
         {/* Chart */}
         {chartData.length > 0 ? (
-          <View style={styles.chartWrapper}>
+          <View style={[styles.chartWrapper, { backgroundColor: themeColors.card, borderRadius: 20, padding: 14, borderWidth: 1, borderColor: themeColors.border, marginBottom: 14 }]}>
             <PieChart
               data={chartData}
               width={screenWidth - 80}
               height={170}
               chartConfig={{
-                backgroundGradientFrom: "#0F2027",
-                backgroundGradientTo: "#0F2027",
-                color: () => "#fff",
+                backgroundGradientFrom: themeColors.card,
+                backgroundGradientTo: themeColors.card,
+                color: () => themeColors.text,
               }}
               accessor="amount"
               backgroundColor="transparent"
@@ -490,14 +569,16 @@ export default function Expense() {
                 key={cat}
                 style={[
                   styles.filterChip,
-                  selectedFilter === cat && styles.activeChip,
+                  { backgroundColor: `${themeColors.text}08` },
+                  selectedFilter === cat && { backgroundColor: '#5B8A72' },
                 ]}
                 onPress={() => setSelectedFilter(cat)}
               >
                 <Text
                   style={[
                     styles.filterText,
-                    selectedFilter === cat && styles.activeFilterText,
+                    { color: themeColors.subtext },
+                    selectedFilter === cat && { color: '#fff', fontWeight: '600' },
                   ]}
                 >
                   {cat}
@@ -529,7 +610,14 @@ export default function Expense() {
         </TouchableOpacity>
 
         {/* Add Expense Modal */}
-        <Modal visible={modalVisible} animationType="slide">
+        <Modal
+          visible={modalVisible}
+          animationType="slide"
+          onRequestClose={() => {
+            setModalVisible(false);
+            resetForm();
+          }}
+        >
           <ExpoLinearGradient colors={themeColors.background} style={styles.modalContainer}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={[styles.modalHeading, { color: themeColors.text }]}>{t('add_expense_title')}</Text>
@@ -581,6 +669,7 @@ export default function Expense() {
                       } else {
                         setUnit("");
                       }
+                      setManualTotal(""); // Clear manual total on category change to prevent overlap
                     }}
                   >
                     <Text
@@ -666,26 +755,34 @@ export default function Expense() {
                 </View>
               ) : null}
 
-              {/* Rate per Unit */}
-              <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('rate_per_unit')} ({currencySymbol})</Text>
-              <TextInput
-                placeholder="0"
-                placeholderTextColor={themeColors.subtext}
-                value={ratePerUnit}
-                onChangeText={setRatePerUnit}
-                keyboardType="numeric"
-                style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
-              />
+              {/* Rate per Unit - Hidden for Labor, Equipment, Plumbing */}
+              {!categoriesWithoutUnits.includes(category) && (
+                <>
+                  <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('rate_per_unit')} ({currencySymbol})</Text>
+                  <TextInput
+                    placeholder="0"
+                    placeholderTextColor={themeColors.subtext}
+                    value={ratePerUnit}
+                    onChangeText={setRatePerUnit}
+                    keyboardType="numeric"
+                    style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
+                  />
+                </>
+              )}
 
               {/* Manual Total Amount */}
               <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('total_amount_label')} ({currencySymbol})</Text>
               <TextInput
-                placeholder={formattedCalculatedTotal !== "0.00" ? `Suggestion: ${currencySymbol}${formattedCalculatedTotal}` : "Enter final amount"}
+                placeholder={
+                  formattedCalculatedTotal !== "0.00"
+                    ? `Suggestion: ${currencySymbol}${formattedCalculatedTotal}`
+                    : (categoriesWithoutUnits.includes(category) ? "Required: Enter total amount" : "Enter final amount")
+                }
                 placeholderTextColor={themeColors.subtext}
                 value={manualTotal}
                 onChangeText={setManualTotal}
                 keyboardType="numeric"
-                style={[styles.input, { backgroundColor: themeColors.card, borderBottomWidth: 1, borderBottomColor: "#4ADE80", borderWidth: 1, borderColor: themeColors.border, color: themeColors.text }]}
+                style={[styles.input, { backgroundColor: themeColors.card, borderBottomWidth: 1, borderBottomColor: "#5B8A72", borderWidth: 1, borderColor: themeColors.border, color: themeColors.text }]}
               />
 
               {/* Payment Mode */}
@@ -735,12 +832,23 @@ export default function Expense() {
               />
 
               {/* Submit */}
-              <TouchableOpacity style={[styles.addButton, { backgroundColor: themeColors.primary }]} onPress={handleAdd}>
-                <Text style={[styles.addButtonText, { color: themeColors.tabBar }]}>{t('add_expense_btn')}</Text>
+              <TouchableOpacity
+                style={[styles.addButton, { backgroundColor: "#5B8A72", marginTop: 20 }]}
+                onPress={handleAdd}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.addButtonText, { color: "#fff" }]}>
+                  {t('add_expense_btn') || "Add Expense"}
+                </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => { setModalVisible(false); resetForm(); }}>
-                <Text style={[styles.cancelText, { color: themeColors.subtext }]}>{t('cancel')}</Text>
+              <TouchableOpacity
+                onPress={() => { setModalVisible(false); resetForm(); }}
+                style={{ paddingVertical: 15 }}
+              >
+                <Text style={[styles.cancelText, { color: themeColors.subtext }]}>
+                  {t('cancel') || "Cancel"}
+                </Text>
               </TouchableOpacity>
 
               <View style={{ height: 40 }} />
@@ -758,23 +866,20 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 34,
     fontWeight: "700",
-    color: "white",
     marginBottom: 15,
     marginTop: 40,
   },
 
   totalBox: {
-    backgroundColor: "rgba(255,255,255,0.08)",
     padding: 20,
     borderRadius: 20,
     marginBottom: 20,
   },
 
-  totalLabel: { color: "#4ADE80", fontSize: 13 },
+  totalLabel: { color: "#5B8A72", fontSize: 13, fontWeight: "600" },
 
   totalAmount: {
     fontSize: 26,
-    color: "white",
     fontWeight: "700",
   },
 
@@ -792,7 +897,6 @@ const styles = StyleSheet.create({
     height: 34,
     paddingHorizontal: 16,
     borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.08)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
@@ -800,19 +904,17 @@ const styles = StyleSheet.create({
 
   filterText: {
     fontSize: 12,
-    color: "rgba(255,255,255,0.8)",
   },
 
-  activeChip: { backgroundColor: "#4ADE80" },
+  activeChip: { backgroundColor: "#5B8A72" },
 
   activeFilterText: {
-    color: "#0F2027",
+    color: "#fff",
     fontWeight: "600",
   },
 
   // ── Expense Card ──
   card: {
-    backgroundColor: "rgba(255,255,255,0.08)",
     padding: 16,
     borderRadius: 18,
     marginBottom: 12,
@@ -825,10 +927,10 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 
-  cardVendor: { color: "white", fontWeight: "700", fontSize: 15, flex: 1 },
+  cardVendor: { fontWeight: "700", fontSize: 15, flex: 1 },
 
   cardAmount: {
-    color: "#4ADE80",
+    color: "#5B8A72",
     fontWeight: "700",
     fontSize: 16,
   },
@@ -840,14 +942,14 @@ const styles = StyleSheet.create({
   },
 
   cardCategory: {
-    color: "#4ADE80",
+    color: "#5B8A72",
     fontSize: 12,
     fontWeight: "600",
   },
 
-  cardDot: { color: "rgba(255,255,255,0.4)", marginHorizontal: 6, fontSize: 10 },
+  cardDot: { marginHorizontal: 6, fontSize: 10 },
 
-  cardDetail: { color: "rgba(255,255,255,0.6)", fontSize: 12 },
+  cardDetail: { fontSize: 12 },
 
   cardFooter: {
     flexDirection: "row",
@@ -855,11 +957,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
 
-  cardDate: { color: "rgba(255,255,255,0.5)", fontSize: 11 },
+  cardDate: { fontSize: 11 },
 
   cardTag: {
-    backgroundColor: "rgba(74,222,128,0.15)",
-    color: "#4ADE80",
+    backgroundColor: "rgba(91,138,114,0.12)",
+    color: "#5B8A72",
     fontSize: 10,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -868,7 +970,6 @@ const styles = StyleSheet.create({
   },
 
   cardPayment: {
-    color: "rgba(255,255,255,0.5)",
     fontSize: 11,
   },
 
@@ -890,7 +991,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#4ADE80",
     justifyContent: "center",
     alignItems: "center",
     elevation: 10,
@@ -898,7 +998,6 @@ const styles = StyleSheet.create({
 
   fabText: {
     fontSize: 30,
-    color: "#0F2027",
     fontWeight: "600",
   },
 
@@ -912,12 +1011,10 @@ const styles = StyleSheet.create({
   modalHeading: {
     fontSize: 24,
     fontWeight: "700",
-    color: "white",
     marginBottom: 20,
   },
 
   fieldLabel: {
-    color: "rgba(255,255,255,0.7)",
     fontSize: 12,
     fontWeight: "600",
     marginBottom: 6,
@@ -926,11 +1023,9 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    backgroundColor: "rgba(255,255,255,0.1)",
     padding: 15,
     borderRadius: 14,
     marginBottom: 15,
-    color: "white",
     fontSize: 15,
   },
 
@@ -950,20 +1045,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.15)",
   },
 
   categoryText: {
-    color: "white",
     fontSize: 13,
   },
 
   activeCategoryChip: {
-    backgroundColor: "#4ADE80",
+    backgroundColor: "#5B8A72",
   },
 
   activeCategoryText: {
-    color: "#0F2027",
+    color: "#fff",
     fontWeight: "600",
   },
 
@@ -981,18 +1074,18 @@ const styles = StyleSheet.create({
   },
 
   activeUnitChip: {
-    backgroundColor: "#4ADE80",
+    backgroundColor: "#5B8A72",
   },
 
   activeUnitText: {
-    color: "#0F2027",
+    color: "#fff",
     fontWeight: "600",
   },
 
   totalCalcBox: {
-    backgroundColor: "rgba(74,222,128,0.1)",
+    backgroundColor: "rgba(91,138,114,0.08)",
     borderWidth: 1,
-    borderColor: "rgba(74,222,128,0.3)",
+    borderColor: "rgba(91,138,114,0.2)",
     borderRadius: 14,
     padding: 16,
     flexDirection: "row",
@@ -1002,19 +1095,18 @@ const styles = StyleSheet.create({
   },
 
   totalCalcLabel: {
-    color: "#4ADE80",
+    color: "#5B8A72",
     fontWeight: "600",
     fontSize: 14,
   },
 
   totalCalcValue: {
-    color: "#4ADE80",
+    color: "#5B8A72",
     fontWeight: "700",
     fontSize: 20,
   },
 
   addButton: {
-    backgroundColor: "#4ADE80",
     padding: 16,
     borderRadius: 14,
     alignItems: "center",
@@ -1023,12 +1115,10 @@ const styles = StyleSheet.create({
 
   addButtonText: {
     fontWeight: "700",
-    color: "#0F2027",
     fontSize: 16,
   },
 
   cancelText: {
-    color: "rgba(255,255,255,0.6)",
     marginTop: 15,
     textAlign: "center",
     fontSize: 15,
@@ -1038,7 +1128,6 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === "web" ? 10 : 0,
@@ -1053,13 +1142,11 @@ const styles = StyleSheet.create({
 
   searchInput: {
     flex: 1,
-    color: "white",
     fontSize: 14,
     height: 46,
   },
 
   searchClear: {
-    color: "rgba(255,255,255,0.5)",
     fontSize: 16,
     paddingLeft: 10,
   },
@@ -1126,22 +1213,21 @@ const dpStyles = StyleSheet.create({
     borderRadius: 20,
   },
   dayCellSelected: {
-    backgroundColor: "#4ADE80",
+    backgroundColor: "#5B8A72",
   },
   dayCellToday: {
     borderWidth: 1.5,
-    borderColor: "#4ADE80",
+    borderColor: "#5B8A72",
   },
   dayText: {
-    color: "white",
     fontSize: 14,
   },
   dayTextSelected: {
-    color: "#0F2027",
+    color: "#fff",
     fontWeight: "700",
   },
   dayTextToday: {
-    color: "#4ADE80",
+    color: "#5B8A72",
     fontWeight: "600",
   },
   actions: {
@@ -1154,18 +1240,17 @@ const dpStyles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.1)",
     alignItems: "center",
   },
-  todayBtnText: { color: "#4ADE80", fontWeight: "600", fontSize: 14 },
+  todayBtnText: { color: "#5B8A72", fontWeight: "600", fontSize: 14 },
   confirmBtn: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: "#4ADE80",
+    backgroundColor: "#5B8A72",
     alignItems: "center",
   },
-  confirmBtnText: { color: "#0F2027", fontWeight: "700", fontSize: 14 },
+  confirmBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 });
 
 // ─── Dropdown Styles ───
@@ -1193,18 +1278,17 @@ const ddStyles = StyleSheet.create({
     marginBottom: 4,
   },
   optionActive: {
-    backgroundColor: "rgba(74,222,128,0.15)",
+    backgroundColor: "rgba(91,138,114,0.1)",
   },
   optionText: {
-    color: "rgba(255,255,255,0.8)",
     fontSize: 15,
   },
   optionTextActive: {
-    color: "#4ADE80",
+    color: "#5B8A72",
     fontWeight: "600",
   },
   check: {
-    color: "#4ADE80",
+    color: "#5B8A72",
     fontSize: 16,
     fontWeight: "700",
   },

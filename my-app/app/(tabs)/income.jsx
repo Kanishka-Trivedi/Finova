@@ -12,8 +12,11 @@ import {
     SafeAreaView,
     ScrollView,
     Alert,
+    Platform,
     Pressable,
+    BackHandler,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { Swipeable } from "react-native-gesture-handler";
 import { LinearGradient as ExpoLinearGradient } from "expo-linear-gradient";
 import { AuthContext } from "../../context/AuthContext";
@@ -114,8 +117,8 @@ function DatePickerModal({ visible, onClose, onSelect, selectedDate, themeColors
                                 key={idx}
                                 style={[
                                     dpStyles.dayCell,
-                                    isSelected(day) && [dpStyles.dayCellSelected, { backgroundColor: "#38BDF8" }],
-                                    isToday(day) && !isSelected(day) && [dpStyles.dayCellToday, { borderColor: "#38BDF8" }],
+                                    isSelected(day) && [dpStyles.dayCellSelected, { backgroundColor: "#5B8A72" }],
+                                    isToday(day) && !isSelected(day) && [dpStyles.dayCellToday, { borderColor: "#5B8A72" }],
                                 ]}
                                 onPress={() => day && selectDay(day)}
                                 disabled={!day}
@@ -123,8 +126,8 @@ function DatePickerModal({ visible, onClose, onSelect, selectedDate, themeColors
                                 <Text style={[
                                     dpStyles.dayText,
                                     { color: day ? themeColors.text : "transparent" },
-                                    isSelected(day) && { color: "#0F2027", fontWeight: "700" },
-                                    isToday(day) && !isSelected(day) && { color: "#38BDF8" },
+                                    isSelected(day) && { color: "#fff", fontWeight: "700" },
+                                    isToday(day) && !isSelected(day) && { color: "#5B8A72" },
                                 ]}>
                                     {day || ""}
                                 </Text>
@@ -134,10 +137,10 @@ function DatePickerModal({ visible, onClose, onSelect, selectedDate, themeColors
 
                     <View style={dpStyles.actions}>
                         <TouchableOpacity onPress={selectToday} style={[dpStyles.todayBtn, { backgroundColor: themeColors.border }]}>
-                            <Text style={[dpStyles.todayBtnText, { color: "#38BDF8" }]}>Today</Text>
+                            <Text style={[dpStyles.todayBtnText, { color: "#5B8A72" }]}>Today</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={confirmDate} style={[dpStyles.confirmBtn, { backgroundColor: "#38BDF8" }]}>
-                            <Text style={[dpStyles.confirmBtnText, { color: "#0F2027" }]}>Confirm</Text>
+                        <TouchableOpacity onPress={confirmDate} style={[dpStyles.confirmBtn, { backgroundColor: "#5B8A72" }]}>
+                            <Text style={[dpStyles.confirmBtnText, { color: "#fff" }]}>Confirm</Text>
                         </TouchableOpacity>
                     </View>
                 </Pressable>
@@ -149,7 +152,7 @@ function DatePickerModal({ visible, onClose, onSelect, selectedDate, themeColors
 // ─── Main Screen ───
 export default function IncomeScreen() {
     const { userToken } = useContext(AuthContext);
-    const { themeColors, settings, currencySymbol } = useSettings();
+    const { themeColors, settings, currencySymbol, formatAmount, convertToBase } = useSettings();
     const [incomes, setIncomes] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -164,6 +167,26 @@ export default function IncomeScreen() {
     const [datePickerVisible, setDatePickerVisible] = useState(false);
 
     const isDark = settings.theme !== "light";
+
+    const router = useRouter();
+
+    useEffect(() => {
+        const backAction = () => {
+            if (modalVisible) {
+                setModalVisible(false);
+                resetForm();
+                return true;
+            }
+            return false;
+        };
+
+        const backHandler = BackHandler.addEventListener(
+            "hardwareBackPress",
+            backAction
+        );
+
+        return () => backHandler.remove();
+    }, [modalVisible]);
 
     useEffect(() => {
         if (userToken) fetchIncomes();
@@ -201,7 +224,7 @@ export default function IncomeScreen() {
         try {
             const res = await axios.post(
                 `${BASE_URL}/incomes`,
-                { date, dealerName: dealerName.trim(), amount: Number(amount), paymentMode, notes },
+                { date, dealerName: dealerName.trim(), amount: convertToBase(amount), paymentMode, notes },
                 { headers: { Authorization: `Bearer ${userToken}` } }
             );
             setIncomes([res.data, ...incomes]);
@@ -258,10 +281,10 @@ export default function IncomeScreen() {
     }, [incomes]);
 
     const modeColors = {
-        Cash: "#4ADE80",
+        Cash: "#34D399",
         UPI: "#38BDF8",
         "Bank Transfer": "#A78BFA",
-        Cheque: "#FACC15",
+        Cheque: "#FBBF24",
         "Credit Card": "#F472B6",
     };
 
@@ -277,49 +300,64 @@ export default function IncomeScreen() {
                 </TouchableOpacity>
             )}
         >
-            <View
-                style={[
-                    styles.card,
-                    {
-                        backgroundColor: themeColors.card,
-                        borderColor: themeColors.border,
-                        borderWidth: isDark ? 0 : 1,
-                    },
-                ]}
+            <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => router.push({
+                    pathname: "/income-detail",
+                    params: {
+                        _id: item._id,
+                        dealerName: item.dealerName,
+                        amount: item.amount,
+                        notes: item.notes,
+                        date: item.date,
+                        paymentMode: item.paymentMode,
+                    }
+                })}
             >
-                {/* Left accent */}
-                <View style={[styles.cardAccent, { backgroundColor: modeColors[item.paymentMode] || "#38BDF8" }]} />
+                <View
+                    style={[
+                        styles.card,
+                        {
+                            backgroundColor: themeColors.card,
+                            borderColor: themeColors.border,
+                            borderWidth: isDark ? 0 : 1,
+                        },
+                    ]}
+                >
+                    {/* Left accent */}
+                    <View style={[styles.cardAccent, { backgroundColor: modeColors[item.paymentMode] || "#5B8A72" }]} />
 
-                <View style={styles.cardContent}>
-                    <View style={styles.cardHeader}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.cardDealer, { color: themeColors.text }]}>{item.dealerName}</Text>
-                            <Text style={[styles.cardDate, { color: themeColors.subtext }]}>{formatDate(item.date)}</Text>
-                        </View>
-                        <Text style={[styles.cardAmount, { color: "#4ADE80" }]}>
-                            +{currencySymbol}{item.amount?.toLocaleString("en-IN")}
-                        </Text>
-                    </View>
-
-                    <View style={styles.cardFooter}>
-                        <View style={[styles.paymentBadge, { backgroundColor: `${modeColors[item.paymentMode] || "#38BDF8"}18` }]}>
-                            <Ionicons
-                                name={paymentIcons[item.paymentMode] || "card-outline"}
-                                size={13}
-                                color={modeColors[item.paymentMode] || "#38BDF8"}
-                            />
-                            <Text style={[styles.paymentBadgeText, { color: modeColors[item.paymentMode] || "#38BDF8" }]}>
-                                {item.paymentMode}
+                    <View style={styles.cardContent}>
+                        <View style={styles.cardHeader}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.cardDealer, { color: themeColors.text }]}>{item.dealerName}</Text>
+                                <Text style={[styles.cardDate, { color: themeColors.subtext }]}>{formatDate(item.date)}</Text>
+                            </View>
+                            <Text style={[styles.cardAmount, { color: "#5B8A72" }]}>
+                                +{formatAmount(item.amount)}
                             </Text>
                         </View>
-                        {item.notes ? (
-                            <Text style={[styles.cardNotes, { color: themeColors.subtext }]} numberOfLines={1}>
-                                {item.notes}
-                            </Text>
-                        ) : null}
+
+                        <View style={styles.cardFooter}>
+                            <View style={[styles.paymentBadge, { backgroundColor: `${modeColors[item.paymentMode] || "#5B8A72"}18` }]}>
+                                <Ionicons
+                                    name={paymentIcons[item.paymentMode] || "card-outline"}
+                                    size={13}
+                                    color={modeColors[item.paymentMode] || "#5B8A72"}
+                                />
+                                <Text style={[styles.paymentBadgeText, { color: modeColors[item.paymentMode] || "#5B8A72" }]}>
+                                    {item.paymentMode}
+                                </Text>
+                            </View>
+                            {item.notes ? (
+                                <Text style={[styles.cardNotes, { color: themeColors.subtext }]} numberOfLines={1}>
+                                    {item.notes}
+                                </Text>
+                            ) : null}
+                        </View>
                     </View>
                 </View>
-            </View>
+            </TouchableOpacity>
         </Swipeable>
     );
 
@@ -329,27 +367,29 @@ export default function IncomeScreen() {
                 <Text style={[styles.heading, { color: themeColors.text }]}>Income</Text>
 
                 {/* Total Card */}
-                <View style={[styles.totalBox, { borderColor: themeColors.border, borderWidth: isDark ? 0 : 1 }]}>
+                <View style={[styles.totalBox, { backgroundColor: "#5B8A72", padding: 20 }]}>
                     <View style={styles.totalTop}>
                         <View>
-                            <Text style={styles.totalLabel}>Total Income</Text>
-                            <Text style={styles.totalAmount}>
-                                {currencySymbol}{totalIncome.toLocaleString("en-IN")}
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.18)", justifyContent: "center", alignItems: "center" }}>
+                                    <Ionicons name="arrow-down-outline" size={20} color="#fff" />
+                                </View>
+                                <Text style={[styles.totalLabel, { color: "rgba(255,255,255,0.85)" }]}>Total Income</Text>
+                            </View>
+                            <Text style={[styles.totalAmount, { color: "#fff", fontSize: 28, marginTop: 4 }]}>
+                                {formatAmount(totalIncome)}
                             </Text>
-                        </View>
-                        <View style={styles.totalIconWrap}>
-                            <Ionicons name="trending-up" size={28} color="#4ADE80" />
                         </View>
                     </View>
 
                     {/* Payment mode breakdown */}
                     {Object.keys(modeBreakdown).length > 0 && (
-                        <View style={styles.breakdownRow}>
+                        <View style={[styles.breakdownRow, { borderTopColor: "rgba(255,255,255,0.15)", marginTop: 20, paddingTop: 15 }]}>
                             {Object.entries(modeBreakdown).map(([mode, val]) => (
-                                <View key={mode} style={styles.breakdownItem}>
-                                    <View style={[styles.breakdownDot, { backgroundColor: modeColors[mode] }]} />
-                                    <Text style={styles.breakdownLabel}>{mode}</Text>
-                                    <Text style={styles.breakdownValue}>{currencySymbol}{val.toLocaleString("en-IN")}</Text>
+                                <View key={mode} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.5)" }} />
+                                    <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, flex: 1 }}>{mode}</Text>
+                                    <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>{formatAmount(val)}</Text>
                                 </View>
                             ))}
                         </View>
@@ -381,14 +421,16 @@ export default function IncomeScreen() {
                                 key={mode}
                                 style={[
                                     styles.filterChip,
-                                    filterMode === mode && styles.activeChip,
+                                    { backgroundColor: `${themeColors.text}08` },
+                                    filterMode === mode && { backgroundColor: "#5B8A72" },
                                 ]}
                                 onPress={() => setFilterMode(mode)}
                             >
                                 <Text
                                     style={[
                                         styles.filterText,
-                                        filterMode === mode && styles.activeFilterText,
+                                        { color: themeColors.subtext },
+                                        filterMode === mode && { color: "#fff", fontWeight: "600" },
                                     ]}
                                 >
                                     {mode}
@@ -416,24 +458,22 @@ export default function IncomeScreen() {
 
                 {/* FAB */}
                 <TouchableOpacity
-                    style={styles.fab}
+                    style={[styles.fab, { backgroundColor: "#5B8A72" }]}
                     onPress={() => setModalVisible(true)}
                     activeOpacity={0.8}
                 >
-                    <Ionicons name="add" size={28} color="#0F2027" />
+                    <Ionicons name="add" size={28} color="#fff" />
                 </TouchableOpacity>
 
                 {/* Add Income Modal */}
-                <Modal visible={modalVisible} animationType="slide">
+                <Modal
+                    visible={modalVisible}
+                    animationType="slide"
+                    onRequestClose={() => { setModalVisible(false); resetForm(); }}
+                >
                     <ExpoLinearGradient colors={themeColors.background} style={styles.modalContainer}>
                         <ScrollView showsVerticalScrollIndicator={false}>
-                            <View style={styles.modalHeader}>
-                                <TouchableOpacity onPress={() => { setModalVisible(false); resetForm(); }}>
-                                    <Ionicons name="close" size={26} color={themeColors.text} />
-                                </TouchableOpacity>
-                                <Text style={[styles.modalHeading, { color: themeColors.text }]}>Add Income</Text>
-                                <View style={{ width: 26 }} />
-                            </View>
+                            <Text style={[styles.modalHeading, { color: themeColors.text }]}>Add Income</Text>
 
                             {/* Date */}
                             <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>Date</Text>
@@ -441,7 +481,6 @@ export default function IncomeScreen() {
                                 style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }]}
                                 onPress={() => setDatePickerVisible(true)}
                             >
-                                <Ionicons name="calendar-outline" size={18} color={themeColors.subtext} style={{ marginRight: 10 }} />
                                 <Text style={{ color: date ? themeColors.text : themeColors.subtext, fontSize: 15 }}>
                                     {date ? formatDate(date) : "Select date"}
                                 </Text>
@@ -461,7 +500,7 @@ export default function IncomeScreen() {
                                 placeholderTextColor={themeColors.subtext}
                                 value={dealerName}
                                 onChangeText={setDealerName}
-                                style={[styles.inputText, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
+                                style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
                             />
 
                             {/* Amount */}
@@ -473,10 +512,10 @@ export default function IncomeScreen() {
                                 onChangeText={setAmount}
                                 keyboardType="numeric"
                                 style={[
-                                    styles.inputText,
+                                    styles.input,
                                     {
                                         backgroundColor: themeColors.card,
-                                        borderColor: "#4ADE80",
+                                        borderColor: "#5B8A72",
                                         borderWidth: 1.5,
                                         color: themeColors.text,
                                         fontSize: 20,
@@ -494,19 +533,14 @@ export default function IncomeScreen() {
                                         style={[
                                             styles.paymentChip,
                                             { backgroundColor: themeColors.border },
-                                            paymentMode === mode && { backgroundColor: `${modeColors[mode]}20`, borderColor: modeColors[mode], borderWidth: 1.5 },
+                                            paymentMode === mode && styles.activePaymentChip,
                                         ]}
                                         onPress={() => setPaymentMode(mode)}
                                     >
-                                        <Ionicons
-                                            name={paymentIcons[mode]}
-                                            size={16}
-                                            color={paymentMode === mode ? modeColors[mode] : themeColors.subtext}
-                                        />
                                         <Text
                                             style={[
-                                                styles.paymentChipText,
-                                                { color: paymentMode === mode ? modeColors[mode] : themeColors.text },
+                                                styles.paymentText,
+                                                paymentMode === mode ? styles.activePaymentText : { color: themeColors.text },
                                             ]}
                                         >
                                             {mode}
@@ -523,7 +557,7 @@ export default function IncomeScreen() {
                                 value={notes}
                                 onChangeText={setNotes}
                                 style={[
-                                    styles.inputText,
+                                    styles.input,
                                     {
                                         height: 90,
                                         textAlignVertical: "top",
@@ -531,20 +565,19 @@ export default function IncomeScreen() {
                                         borderColor: themeColors.border,
                                         borderWidth: 1,
                                         color: themeColors.text,
+                                        paddingTop: 15,
                                     },
                                 ]}
                                 multiline
                             />
 
                             {/* Submit */}
-                            <TouchableOpacity style={styles.addButton} onPress={handleAdd} activeOpacity={0.8}>
-                                <Ionicons name="add-circle-outline" size={20} color="#0F2027" />
-                                <Text style={styles.addButtonText}>Add Income</Text>
+                            <TouchableOpacity style={[styles.addButton, { backgroundColor: "#5B8A72" }]} onPress={handleAdd} activeOpacity={0.8}>
+                                <Text style={[styles.addButtonText, { color: "#fff" }]}>Add Income</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 onPress={() => { setModalVisible(false); resetForm(); }}
-                                style={styles.cancelBtn}
                             >
                                 <Text style={[styles.cancelText, { color: themeColors.subtext }]}>Cancel</Text>
                             </TouchableOpacity>
@@ -568,262 +601,291 @@ const styles = StyleSheet.create({
         marginTop: 40,
     },
 
-    /* ── Total Card ── */
     totalBox: {
-        backgroundColor: "rgba(255,255,255,0.06)",
         padding: 20,
-        borderRadius: 22,
-        marginBottom: 18,
+        borderRadius: 20,
+        marginBottom: 20,
     },
+
     totalTop: {
         flexDirection: "row",
         justifyContent: "space-between",
-        alignItems: "center",
+        alignItems: "flex-end",
     },
-    totalLabel: { color: "#4ADE80", fontSize: 13, fontWeight: "600", letterSpacing: 0.5 },
-    totalAmount: { fontSize: 28, color: "white", fontWeight: "800", marginTop: 4 },
-    totalIconWrap: {
-        width: 52,
-        height: 52,
-        borderRadius: 16,
-        backgroundColor: "rgba(74,222,128,0.12)",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    breakdownRow: {
-        marginTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: "rgba(255,255,255,0.08)",
-        paddingTop: 14,
-        gap: 8,
-    },
-    breakdownItem: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-    },
-    breakdownDot: { width: 8, height: 8, borderRadius: 4 },
-    breakdownLabel: { color: "rgba(255,255,255,0.5)", fontSize: 12, flex: 1 },
-    breakdownValue: { color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: "600" },
 
-    /* ── Search ── */
+    totalLabel: {
+        color: "#5B8A72",
+        fontSize: 13,
+        fontWeight: "600",
+    },
+
+    totalAmount: {
+        fontSize: 26,
+        fontWeight: "700",
+    },
+
+    breakdownRow: {
+        borderTopWidth: 1,
+        borderTopColor: "rgba(255,255,255,0.1)",
+        marginTop: 15,
+        paddingTop: 10,
+    },
+
+    // ── Search Bar ──
     searchBar: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 14,
-        paddingVertical: 12,
         borderRadius: 14,
+        paddingHorizontal: 14,
         marginBottom: 12,
-        gap: 10,
+        height: 46,
     },
-    searchInput: { flex: 1, fontSize: 14, padding: 0 },
 
-    /* ── Filter ── */
-    filterRow: { height: 42, marginBottom: 10 },
+    searchInput: {
+        flex: 1,
+        fontSize: 14,
+        height: 46,
+        marginLeft: 10,
+    },
+
+    // ── Filter ──
+    filterRow: {
+        height: 50,
+        marginBottom: 10,
+    },
+
     filterChip: {
         height: 34,
         paddingHorizontal: 16,
         borderRadius: 18,
-        backgroundColor: "rgba(255,255,255,0.08)",
         justifyContent: "center",
         alignItems: "center",
-        marginRight: 8,
+        marginRight: 10,
     },
-    activeChip: { backgroundColor: "#38BDF8" },
-    filterText: { color: "rgba(255,255,255,0.6)", fontWeight: "600", fontSize: 13 },
-    activeFilterText: { color: "#0F2027" },
 
-    /* ── Cards ── */
+    filterText: {
+        fontSize: 12,
+    },
+
+    // ── Card ──
     card: {
-        flexDirection: "row",
         borderRadius: 18,
-        marginBottom: 10,
-        overflow: "hidden",
+        marginBottom: 12,
+        padding: 15,
+        flexDirection: "row",
     },
+
     cardAccent: {
-        width: 4,
+        width: 3.5,
+        borderRadius: 2,
+        marginRight: 10,
     },
+
     cardContent: {
         flex: 1,
-        padding: 16,
     },
+
     cardHeader: {
         flexDirection: "row",
-        alignItems: "flex-start",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 6,
     },
-    cardDealer: { fontSize: 16, fontWeight: "700" },
-    cardDate: { fontSize: 12, marginTop: 2 },
-    cardAmount: { fontSize: 18, fontWeight: "800" },
+
+    cardDealer: {
+        fontSize: 15,
+        fontWeight: "700",
+    },
+
+    cardDate: {
+        fontSize: 11,
+    },
+
+    cardAmount: {
+        fontSize: 16,
+        fontWeight: "700",
+    },
+
     cardFooter: {
         flexDirection: "row",
         alignItems: "center",
-        marginTop: 10,
-        gap: 10,
+        justifyContent: "space-between",
+        marginTop: 8,
     },
+
     paymentBadge: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 5,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        gap: 4,
     },
-    paymentBadgeText: { fontSize: 11, fontWeight: "600" },
-    cardNotes: { fontSize: 12, flex: 1 },
 
-    /* ── Delete ── */
+    paymentBadgeText: {
+        fontSize: 10,
+        fontWeight: "600",
+    },
+
+    cardNotes: {
+        fontSize: 12,
+        fontStyle: "italic",
+        flex: 1,
+        textAlign: "right",
+        marginLeft: 10,
+    },
+
     deleteButton: {
         backgroundColor: "#EF4444",
         justifyContent: "center",
         alignItems: "center",
-        width: 90,
+        width: 80,
         borderRadius: 18,
-        marginBottom: 10,
-        gap: 4,
-    },
-    deleteText: { color: "#fff", fontWeight: "600", fontSize: 12 },
-
-    /* ── Empty ── */
-    emptyState: {
-        alignItems: "center",
-        marginTop: 60,
+        marginBottom: 12,
     },
 
-    /* ── FAB ── */
+    deleteText: {
+        color: "#fff",
+        fontWeight: "600",
+        fontSize: 12,
+    },
+
     fab: {
         position: "absolute",
-        bottom: 100,
-        right: 24,
-        width: 58,
-        height: 58,
-        borderRadius: 29,
-        backgroundColor: "#38BDF8",
+        bottom: 30,
+        right: 25,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
         justifyContent: "center",
         alignItems: "center",
         elevation: 8,
-        shadowColor: "#38BDF8",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.4,
-        shadowRadius: 10,
     },
 
-    /* ── Modal ── */
-    modalContainer: { flex: 1, padding: 20 },
-    modalHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginTop: 40,
-        marginBottom: 30,
+    // ── Modal / Form ──
+    modalContainer: {
+        flex: 1,
+        padding: 24,
+        paddingTop: 60,
     },
-    modalHeading: { fontSize: 22, fontWeight: "800" },
+
+    modalHeading: {
+        fontSize: 24,
+        fontWeight: "700",
+        marginBottom: 20,
+    },
 
     fieldLabel: {
         fontSize: 12,
-        fontWeight: "700",
-        letterSpacing: 0.5,
+        fontWeight: "600",
+        marginBottom: 6,
         textTransform: "uppercase",
-        marginBottom: 8,
-        marginTop: 18,
-        paddingLeft: 2,
+        letterSpacing: 0.5,
     },
 
     input: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        padding: 15,
         borderRadius: 14,
-        fontSize: 15,
-    },
-    inputText: {
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        borderRadius: 14,
+        marginBottom: 15,
         fontSize: 15,
     },
 
-    /* ── Payment Mode Grid ── */
     paymentGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        gap: 8,
+        gap: 10,
+        marginBottom: 15,
     },
-    paymentChip: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderRadius: 12,
-    },
-    paymentChipText: { fontWeight: "600", fontSize: 13 },
 
-    /* ── Buttons ── */
+    paymentChip: {
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        borderRadius: 18,
+    },
+
+    paymentText: {
+        fontSize: 13,
+    },
+
+    activePaymentChip: {
+        backgroundColor: "#5B8A72",
+    },
+
+    activePaymentText: {
+        color: "#fff",
+        fontWeight: "600",
+    },
+
     addButton: {
-        backgroundColor: "#38BDF8",
-        flexDirection: "row",
+        padding: 16,
+        borderRadius: 14,
         alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        padding: 18,
-        borderRadius: 16,
-        marginTop: 28,
+        marginTop: 10,
     },
-    addButtonText: { color: "#0F2027", fontWeight: "800", fontSize: 16 },
-    cancelBtn: {
+
+    addButtonText: {
+        fontWeight: "700",
+        fontSize: 16,
+    },
+
+    cancelText: {
+        marginTop: 15,
+        textAlign: "center",
+        fontSize: 15,
+    },
+
+    emptyState: {
         alignItems: "center",
-        paddingVertical: 14,
-        marginTop: 8,
+        marginTop: 50,
     },
-    cancelText: { fontSize: 15, fontWeight: "600" },
 });
 
 /* ── Date Picker Styles ── */
 const dpStyles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: "rgba(0,0,0,0.6)",
+        backgroundColor: "rgba(15,32,39,0.8)",
         justifyContent: "center",
         alignItems: "center",
-        padding: 20,
     },
     container: {
-        width: "100%",
-        maxWidth: 360,
-        borderRadius: 22,
-        padding: 20,
+        width: Dimensions.get("window").width - 48,
+        maxWidth: 400,
+        borderRadius: 28,
+        padding: 24,
+        elevation: 20,
     },
     header: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 16,
+        marginBottom: 20,
     },
-    navBtn: { width: 36, height: 36, borderRadius: 10, justifyContent: "center", alignItems: "center" },
-    navText: { fontSize: 22, fontWeight: "700" },
-    monthYear: { fontSize: 17, fontWeight: "700" },
-    weekRow: { flexDirection: "row", justifyContent: "space-around", marginBottom: 8 },
-    weekDay: { width: 40, textAlign: "center", fontSize: 13, fontWeight: "600" },
+    navBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: "center", alignItems: "center" },
+    navText: { fontSize: 22, fontWeight: "600" },
+    monthYear: { fontSize: 18, fontWeight: "800" },
+    weekRow: { flexDirection: "row", justifyContent: "space-around", marginBottom: 10 },
+    weekDay: { width: 40, textAlign: "center", fontSize: 12, fontWeight: "800", textTransform: "uppercase", opacity: 0.5 },
     grid: { flexDirection: "row", flexWrap: "wrap" },
     dayCell: {
         width: `${100 / 7}%`,
-        height: 40,
+        aspectRatio: 1,
         justifyContent: "center",
         alignItems: "center",
-        borderRadius: 10,
+        borderRadius: 12,
     },
-    dayCellSelected: { borderRadius: 10 },
-    dayCellToday: { borderWidth: 1.5, borderRadius: 10 },
-    dayText: { fontSize: 15 },
+    dayCellSelected: { elevation: 4 },
+    dayCellToday: { borderWidth: 2 },
+    dayText: { fontSize: 15, fontWeight: "600" },
     actions: {
         flexDirection: "row",
-        justifyContent: "flex-end",
-        gap: 10,
-        marginTop: 16,
+        justifyContent: "space-between",
+        gap: 12,
+        marginTop: 24,
     },
-    todayBtn: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10 },
-    todayBtnText: { fontWeight: "700", fontSize: 14 },
-    confirmBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 },
-    confirmBtnText: { fontWeight: "700", fontSize: 14 },
+    todayBtn: { flex: 1, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+    todayBtnText: { fontWeight: "700", fontSize: 15 },
+    confirmBtn: { flex: 1, height: 50, borderRadius: 14, alignItems: "center", justifyContent: "center", elevation: 4 },
+    confirmBtnText: { fontWeight: "800", fontSize: 15 },
 });
+

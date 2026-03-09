@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useMemo, useCallback, useRef } from "react";
+import React, { useContext, useEffect, useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,11 +9,10 @@ import {
   Dimensions,
   StatusBar,
   RefreshControl,
-  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import axios from "axios";
 import { AuthContext } from "../../context/AuthContext";
@@ -21,18 +20,7 @@ import { useSettings } from "../../context/SettingsContext";
 import { BASE_URL } from "../../config";
 
 const { width: SCREEN_W } = Dimensions.get("window");
-const CARD_W = SCREEN_W * 0.72;
 
-/* ─── Helpers ─── */
-const formatINR = (num) => {
-  if (num === undefined || num === null) return "₹0";
-  const abs = Math.abs(num);
-  let formatted;
-  if (abs >= 10000000) formatted = `${(abs / 10000000).toFixed(2)} Cr`;
-  else if (abs >= 100000) formatted = `${(abs / 100000).toFixed(2)} L`;
-  else formatted = abs.toLocaleString("en-IN");
-  return `₹${num < 0 ? "-" : ""}${formatted}`;
-};
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -46,9 +34,8 @@ const getMonthName = (idx) =>
 
 const getTodayString = () => {
   const d = new Date();
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 };
 
 const pctChange = (current, previous) => {
@@ -74,7 +61,7 @@ const Skeleton = ({ w, h, r = 12, style }) => {
   );
 };
 
-/* ─── Sparkline (Simple SVG-free) ─── */
+/* ─── Sparkline (mini bar chart) ─── */
 const MiniSparkline = ({ data, color, width: w = 100, height: h = 32 }) => {
   if (!data || data.length < 2) return null;
   const max = Math.max(...data, 1);
@@ -104,12 +91,73 @@ const MiniSparkline = ({ data, color, width: w = 100, height: h = 32 }) => {
   );
 };
 
-/* ─── Bar Chart (Fixed Y-axis + Scrollable Bars) ─── */
-const BAR_GROUP_W = (SCREEN_W - 40 - 54) / 6; // 6 months visible at a time
-const CHART_H = 130; // height of the bar drawing area
-const LABEL_H = 22; // space for month labels below baseline
+/* ─── Area-style Chart ─── */
+const AreaChart = ({ data, color, labels, themeColors, height: chartH = 140 }) => {
+  if (!data || data.length === 0) return null;
+  const maxVal = Math.max(...data, 1);
 
-const BarChart = ({ incomeData, expenseData, labels, themeColors }) => {
+  return (
+    <View style={{ height: chartH + 30 }}>
+      {/* Grid lines */}
+      <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: chartH }}>
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={{ position: "absolute", top: (chartH / 3) * i, left: 0, right: 0, height: 1, backgroundColor: `${themeColors.text}08` }} />
+        ))}
+      </View>
+
+      {/* Bars with gradient appearance */}
+      <View style={{ flexDirection: "row", alignItems: "flex-end", height: chartH, paddingHorizontal: 4 }}>
+        {data.map((val, i) => {
+          const barH = Math.max(4, (val / maxVal) * (chartH - 10));
+          const barW = (SCREEN_W - 80) / data.length - 8;
+          return (
+            <View key={i} style={{ flex: 1, alignItems: "center" }}>
+              <View
+                style={{
+                  width: barW,
+                  height: barH,
+                  backgroundColor: `${color}25`,
+                  borderTopLeftRadius: 4,
+                  borderTopRightRadius: 4,
+                  overflow: "hidden",
+                }}
+              >
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: barH * 0.7,
+                    backgroundColor: color,
+                    borderTopLeftRadius: 3,
+                    borderTopRightRadius: 3,
+                  }}
+                />
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Labels */}
+      <View style={{ flexDirection: "row", marginTop: 8, paddingHorizontal: 4 }}>
+        {labels.map((label, i) => (
+          <View key={i} style={{ flex: 1, alignItems: "center" }}>
+            <Text style={{ fontSize: 10, color: themeColors.subtext, fontWeight: "500" }}>{label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+};
+
+/* ─── Bar Chart (Fixed Y-axis + Scrollable Bars) ─── */
+const BAR_GROUP_W = (SCREEN_W - 40 - 54) / 6;
+const CHART_H = 130;
+const LABEL_H = 22;
+
+const BarChart = ({ incomeData, expenseData, labels, themeColors, formatAmount }) => {
   const maxVal = Math.max(...incomeData, ...expenseData, 1);
   const totalW = BAR_GROUP_W * labels.length;
 
@@ -122,26 +170,24 @@ const BarChart = ({ incomeData, expenseData, labels, themeColors }) => {
     );
   }
 
-  const lineColor = `${themeColors.subtext}18`;
+  const lineColor = `${themeColors.text}08`;
 
   return (
     <View style={chartStyles.outer}>
-      {/* ── Fixed Y-axis ── */}
+      {/* Fixed Y-axis */}
       <View style={[chartStyles.yCol, { height: CHART_H + LABEL_H }]}>
-        <Text style={[chartStyles.yTxt, { color: themeColors.subtext, top: 0 }]}>{formatINR(maxVal)}</Text>
-        <Text style={[chartStyles.yTxt, { color: themeColors.subtext, top: CHART_H / 2 - 6 }]}>{formatINR(maxVal / 2)}</Text>
-        <Text style={[chartStyles.yTxt, { color: themeColors.subtext, top: CHART_H - 10 }]}>₹0</Text>
+        <Text style={[chartStyles.yTxt, { color: themeColors.subtext, top: 0 }]}>{formatAmount(maxVal)}</Text>
+        <Text style={[chartStyles.yTxt, { color: themeColors.subtext, top: CHART_H / 2 - 6 }]}>{formatAmount(maxVal / 2)}</Text>
+        <Text style={[chartStyles.yTxt, { color: themeColors.subtext, top: CHART_H - 10 }]}>{formatAmount(0)}</Text>
       </View>
 
-      {/* ── Scrollable area ── */}
+      {/* Scrollable area */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
         <View style={{ width: totalW, height: CHART_H + LABEL_H }}>
-          {/* 3 horizontal lines aligned with Y labels */}
           <View style={[chartStyles.hLine, { top: 4, width: totalW, borderColor: lineColor }]} />
           <View style={[chartStyles.hLine, { top: CHART_H / 2, width: totalW, borderColor: lineColor }]} />
           <View style={[chartStyles.hLine, { top: CHART_H - 2, width: totalW, borderColor: lineColor }]} />
 
-          {/* Bars row — sits inside the CHART_H zone */}
           <View style={{ position: "absolute", left: 0, right: 0, bottom: LABEL_H, height: CHART_H, flexDirection: "row", alignItems: "flex-end" }}>
             {labels.map((label, i) => {
               const incVal = incomeData[i] || 0;
@@ -160,7 +206,6 @@ const BarChart = ({ incomeData, expenseData, labels, themeColors }) => {
             })}
           </View>
 
-          {/* Month labels — below the ₹0 line */}
           <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: LABEL_H, flexDirection: "row" }}>
             {labels.map((label, i) => (
               <View key={i} style={{ width: BAR_GROUP_W, alignItems: "center", justifyContent: "center" }}>
@@ -175,11 +220,10 @@ const BarChart = ({ incomeData, expenseData, labels, themeColors }) => {
 };
 
 /* ─── Donut Chart Component ─── */
-const DonutChart = ({ data, size = 160, themeColors }) => {
+const DonutChart = ({ data, size = 160, themeColors, formatAmount }) => {
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0) return null;
 
-  // We'll draw a simple segmented ring using rotated arcs
   let accumulated = 0;
   const segments = data.map((d) => {
     const pct = d.value / total;
@@ -191,9 +235,7 @@ const DonutChart = ({ data, size = 160, themeColors }) => {
   return (
     <View style={{ alignItems: "center" }}>
       <View style={{ width: size, height: size, position: "relative" }}>
-        {/* Segments as colored rings */}
         {segments.map((seg, i) => {
-          const degrees = seg.pct * 360;
           const rotStart = seg.start * 360 - 90;
           return (
             <View
@@ -215,7 +257,6 @@ const DonutChart = ({ data, size = 160, themeColors }) => {
           );
         })}
 
-        {/* Center white circle */}
         <View
           style={{
             position: "absolute",
@@ -224,14 +265,14 @@ const DonutChart = ({ data, size = 160, themeColors }) => {
             width: size - 48,
             height: size - 48,
             borderRadius: (size - 48) / 2,
-            backgroundColor: themeColors.background[0],
+            backgroundColor: themeColors.card,
             justifyContent: "center",
             alignItems: "center",
           }}
         >
           <Text style={{ color: themeColors.subtext, fontSize: 10, fontWeight: "600" }}>TOTAL</Text>
           <Text style={{ color: themeColors.text, fontSize: 16, fontWeight: "800" }}>
-            {formatINR(total)}
+            {formatAmount(total)}
           </Text>
         </View>
       </View>
@@ -244,10 +285,13 @@ const DonutChart = ({ data, size = 160, themeColors }) => {
 ═══════════════════════════════════════════════ */
 export default function Dashboard() {
   const { userToken } = useContext(AuthContext);
-  const { themeColors, settings, currencySymbol } = useSettings();
+  const { themeColors, settings, currencySymbol, formatAmount } = useSettings();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const isDark = settings.theme !== "light";
+
+  const TEAL = "#5B8A72";
+  const ACCENT = "#D4A853";
 
   const [userData, setUserData] = useState(null);
   const [expenses, setExpenses] = useState([]);
@@ -255,6 +299,8 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [activeTab, setActiveTab] = useState("Weekly");
+  const [activeIncomeTab, setActiveIncomeTab] = useState("Weekly");
 
   /* ── Data Fetching ── */
   const fetchAll = useCallback(async () => {
@@ -340,7 +386,7 @@ export default function Dashboard() {
   const incomeSpark = useMemo(() => getLast7Days(incomes, "amount"), [incomes]);
   const expenseSpark = useMemo(() => getLast7Days(expenses, "totalAmount"), [expenses]);
 
-  // Full year bar data — Jan to Dec of current year
+  // Full year bar data
   const yearlyData = useMemo(() => {
     const incData = [], expData = [], labels = [];
     for (let mo = 0; mo < 12; mo++) {
@@ -351,7 +397,7 @@ export default function Dashboard() {
     return { incData, expData, labels };
   }, [incomes, expenses, thisYear]);
 
-  // Expense category breakdown — use ALL expenses
+  // Expense category breakdown
   const categoryBreakdown = useMemo(() => {
     const map = {};
     expenses.forEach((e) => {
@@ -360,19 +406,19 @@ export default function Dashboard() {
       }
     });
     const colors = {
-      Cement: "#4ADE80", Steel: "#38BDF8", Sand: "#FACC15", Bricks: "#F472B6",
-      Aggregate: "#A78BFA", Plumbing: "#2DD4BF", Labor: "#FB923C", Equipment: "#818CF8",
-      Transport: "#F87171", Granite: "#34D399", Marble: "#C084FC", Tiles: "#E879F9",
-      Color: "#A3E635", Block: "#6366F1", Miscellaneous: "#94A3B8",
+      Cement: "#34D399", Steel: "#38BDF8", Sand: "#FBBF24", Bricks: "#F87171",
+      Aggregate: "#A78BFA", Plumbing: "#2DD4BF", Granite: "#FB923C", Marble: "#818CF8",
+      Tiles: "#F472B6", Color: "#4ADE80", Block: "#E879F9", Labor: "#22D3EE",
+      Equipment: "#FACC15", Transport: "#6366F1", Miscellaneous: "#14B8A6",
     };
     return Object.entries(map).map(([name, value]) => ({
       name,
       value,
-      color: colors[name] || "#94A3B8",
+      color: colors[name] || "#8A8A7E",
     })).sort((a, b) => b.value - a.value);
   }, [expenses]);
 
-  // Recent transactions (merged + sorted)
+  // Recent transactions
   const recentTransactions = useMemo(() => {
     const all = [
       ...expenses.map((e) => ({ ...e, type: "expense", _amount: e.totalAmount, _name: e.vendorName, _date: e.date })),
@@ -396,6 +442,74 @@ export default function Dashboard() {
     return `${Math.floor(diff / 60)}h ago`;
   }, [lastUpdated, refreshing]);
 
+  // Chart data based on active tab (expenses)
+  const chartData = useMemo(() => {
+    const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    if (activeTab === "Weekly") {
+      const data = [];
+      const labels = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dayStr = d.toISOString().split("T")[0];
+        const total = expenses.filter((it) => it.date?.startsWith(dayStr)).reduce((s, it) => s + (it.totalAmount || 0), 0);
+        data.push(total);
+        labels.push(dayNames[d.getDay() === 0 ? 6 : d.getDay() - 1]);
+      }
+      return { data, labels };
+    } else if (activeTab === "Monthly") {
+      const data = [];
+      const labels = [];
+      for (let mo = 0; mo < 12; mo++) {
+        data.push(expenses.filter((x) => { const d = new Date(x.date); return d.getMonth() === mo && d.getFullYear() === thisYear; }).reduce((s, x) => s + (x.totalAmount || 0), 0));
+        labels.push(getMonthName(mo));
+      }
+      return { data, labels };
+    } else {
+      const data = [];
+      const labels = [];
+      for (let y = thisYear - 4; y <= thisYear; y++) {
+        data.push(expenses.filter((x) => new Date(x.date).getFullYear() === y).reduce((s, x) => s + (x.totalAmount || 0), 0));
+        labels.push(y.toString());
+      }
+      return { data, labels };
+    }
+  }, [activeTab, expenses, thisYear]);
+
+  // Chart data based on active tab (income)
+  const incomeChartData = useMemo(() => {
+    const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    if (activeIncomeTab === "Weekly") {
+      const data = [];
+      const labels = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dayStr = d.toISOString().split("T")[0];
+        const total = incomes.filter((it) => it.date?.startsWith(dayStr)).reduce((s, it) => s + (it.amount || 0), 0);
+        data.push(total);
+        labels.push(dayNames[d.getDay() === 0 ? 6 : d.getDay() - 1]);
+      }
+      return { data, labels };
+    } else if (activeIncomeTab === "Monthly") {
+      const data = [];
+      const labels = [];
+      for (let mo = 0; mo < 12; mo++) {
+        data.push(incomes.filter((x) => { const d = new Date(x.date); return d.getMonth() === mo && d.getFullYear() === thisYear; }).reduce((s, x) => s + (x.amount || 0), 0));
+        labels.push(getMonthName(mo));
+      }
+      return { data, labels };
+    } else {
+      const data = [];
+      const labels = [];
+      for (let y = thisYear - 4; y <= thisYear; y++) {
+        data.push(incomes.filter((x) => new Date(x.date).getFullYear() === y).reduce((s, x) => s + (x.amount || 0), 0));
+        labels.push(y.toString());
+      }
+      return { data, labels };
+    }
+  }, [activeIncomeTab, incomes, thisYear]);
+
   /* ── Loading State ── */
   if (loading) {
     return (
@@ -410,15 +524,13 @@ export default function Dashboard() {
             </View>
           </View>
           <Skeleton w={SCREEN_W - 40} h={20} />
+          <Skeleton w={SCREEN_W - 40} h={160} r={22} />
           <View style={{ flexDirection: "row", gap: 14 }}>
-            <Skeleton w={CARD_W} h={170} r={22} />
-            <Skeleton w={CARD_W} h={170} r={22} />
+            <Skeleton w={(SCREEN_W - 54) / 2} h={100} r={18} />
+            <Skeleton w={(SCREEN_W - 54) / 2} h={100} r={18} />
           </View>
           <Skeleton w={SCREEN_W - 40} h={200} r={22} />
           <Skeleton w={SCREEN_W - 40} h={180} r={22} />
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} w={SCREEN_W - 40} h={72} r={16} />
-          ))}
         </View>
       </LinearGradient>
     );
@@ -435,143 +547,241 @@ export default function Dashboard() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={themeColors.primary}
-            colors={[themeColors.primary]}
+            tintColor={TEAL}
+            colors={[TEAL]}
           />
         }
       >
-        {/* ═══════════ HEADER BAR ═══════════ */}
+        {/* ═══════════ HEADER ═══════════ */}
         <View style={s.headerBar}>
           <TouchableOpacity style={s.headerLeft} onPress={() => router.push("/(tabs)/profile")} activeOpacity={0.7}>
             {userData?.profilePhoto ? (
               <Image source={{ uri: userData.profilePhoto }} style={s.headerAvatar} />
             ) : (
-              <View style={[s.headerAvatarPH, { backgroundColor: themeColors.primary }]}>
-                <Text style={{ color: isDark ? "#0F2027" : "#fff", fontWeight: "800", fontSize: 18 }}>
+              <View style={[s.headerAvatarPH, { backgroundColor: TEAL }]}>
+                <Text style={{ color: "#fff", fontWeight: "800", fontSize: 18 }}>
                   {userData?.name?.charAt(0).toUpperCase()}
                 </Text>
               </View>
             )}
             <View>
-              <Text style={[s.greeting, { color: themeColors.subtext }]}>{getGreeting()},</Text>
-              <Text style={[s.userName, { color: themeColors.text }]}>{userData?.name?.split(" ")[0] || "Builder"}</Text>
+              <Text style={[s.userName, { color: themeColors.text }]}>{userData?.name || "Builder"}</Text>
+              <Text style={[s.greeting, { color: themeColors.subtext }]}>{getGreeting()}</Text>
             </View>
           </TouchableOpacity>
 
-          <View style={s.headerRight}>
-            <TouchableOpacity style={[s.headerIconBtn, { backgroundColor: `${themeColors.text}10` }]} onPress={() => router.push("/preferences")}>
-              <Ionicons name="settings-outline" size={22} color={themeColors.text} />
-            </TouchableOpacity>
+          <View style={s.activeBadge}>
+            <View style={s.activeDot} />
+            <Text style={s.activeText}>Active</Text>
           </View>
         </View>
 
-        {/* Date */}
-        <Text style={[s.todayDate, { color: themeColors.subtext }]}>{getTodayString()}</Text>
+        {/* ═══════════ TWO TEAL CARDS ═══════════ */}
+        <View style={{ gap: 14, marginBottom: 20 }}>
+          {/* Expenses Card */}
+          <View style={[s.tealCardFull, { backgroundColor: TEAL }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.15)", justifyContent: "center", alignItems: "center" }}>
+                  <Ionicons name="arrow-up-outline" size={20} color="#fff" />
+                </View>
+                <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: "700" }}>Expenses</Text>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.6)" />
+                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: "600" }}>{getTodayString()}</Text>
+              </View>
+            </View>
+            <Text style={s.tealAmountBig}>{formatAmount(totalExpenseThisMonth)}</Text>
+            <View style={{ marginTop: 14 }}>
+              <MiniSparkline data={expenseSpark} color="rgba(255,255,255,0.45)" width={SCREEN_W - 80} height={32} />
+            </View>
+          </View>
 
-        {/* ═══════════ HERO SUMMARY CARDS (Stacked) ═══════════ */}
-        <View style={s.heroStack}>
           {/* Income Card */}
-          <View style={[s.heroCard, { backgroundColor: isDark ? "rgba(74,222,128,0.08)" : "rgba(74,222,128,0.06)", borderColor: "rgba(74,222,128,0.2)" }]}>
-            <View style={s.heroCardTop}>
-              <View style={[s.heroIconWrap, { backgroundColor: "rgba(74,222,128,0.15)" }]}>
-                <Ionicons name="trending-up" size={22} color="#4ADE80" />
+          <View style={[s.tealCardFull, { backgroundColor: TEAL }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.15)", justifyContent: "center", alignItems: "center" }}>
+                  <Ionicons name="arrow-down-outline" size={20} color="#fff" />
+                </View>
+                <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: "700" }}>Income</Text>
               </View>
-              <Text style={[s.heroLabel, { color: themeColors.subtext, marginBottom: 0 }]}>This Month's Income</Text>
-            </View>
-            <View style={s.heroBottom}>
-              <Text style={[s.heroAmount, { color: "#4ADE80" }]}>{formatINR(totalIncomeThisMonth)}</Text>
-              <MiniSparkline data={incomeSpark} color="#4ADE80" width={110} height={30} />
-            </View>
-          </View>
-
-          {/* Expense Card */}
-          <View style={[s.heroCard, { backgroundColor: isDark ? "rgba(56,189,248,0.08)" : "rgba(56,189,248,0.06)", borderColor: "rgba(56,189,248,0.2)" }]}>
-            <View style={s.heroCardTop}>
-              <View style={[s.heroIconWrap, { backgroundColor: "rgba(56,189,248,0.15)" }]}>
-                <Ionicons name="trending-down" size={22} color="#38BDF8" />
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.6)" />
+                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: "600" }}>{getTodayString()}</Text>
               </View>
-              <Text style={[s.heroLabel, { color: themeColors.subtext, marginBottom: 0 }]}>This Month's Expenses</Text>
             </View>
-            <View style={s.heroBottom}>
-              <Text style={[s.heroAmount, { color: "#38BDF8" }]}>{formatINR(totalExpenseThisMonth)}</Text>
-              <MiniSparkline data={expenseSpark} color="#38BDF8" width={110} height={30} />
+            <Text style={s.tealAmountBig}>{formatAmount(totalIncomeThisMonth)}</Text>
+            <View style={{ marginTop: 14 }}>
+              <MiniSparkline data={incomeSpark} color="rgba(255,255,255,0.45)" width={SCREEN_W - 80} height={32} />
             </View>
           </View>
         </View>
 
-        {/* ═══════════ FINANCIAL OVERVIEW BAR CHART ═══════════ */}
-        <View style={[s.section, { backgroundColor: isDark ? "#1A2B32" : themeColors.card, borderColor: themeColors.border }]}>
+        {/* ═══════════ EXPENSE CHART SECTION ═══════════ */}
+        <View style={[s.section, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
           <View style={s.sectionHeader}>
-            <View>
-              <Text style={[s.sectionTitle, { color: themeColors.text }]}>Financial Overview</Text>
-              <Text style={[s.sectionSub, { color: themeColors.subtext }]}>Jan – Dec {thisYear} • Scroll to see more</Text>
-            </View>
-            <View style={{ flexDirection: "row", gap: 12 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#4ADE80" }} />
-                <Text style={{ color: themeColors.subtext, fontSize: 11 }}>Income</Text>
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#38BDF8" }} />
-                <Text style={{ color: themeColors.subtext, fontSize: 11 }}>Expense</Text>
-              </View>
-            </View>
+            <Text style={[s.sectionTitle, { color: themeColors.text }]}>Expense Trends</Text>
           </View>
 
-          <BarChart
-            incomeData={yearlyData.incData}
-            expenseData={yearlyData.expData}
-            labels={yearlyData.labels}
+          {/* Tab Chips */}
+          <View style={s.chipRow}>
+            {["Weekly", "Monthly", "Yearly"].map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[s.chip, activeTab === tab && { backgroundColor: TEAL }]}
+                onPress={() => setActiveTab(tab)}
+                activeOpacity={0.7}
+              >
+                <Text style={[s.chipText, activeTab === tab && { color: "#fff" }]}>{tab}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Big Amount */}
+          <Text style={[s.chartBigAmount, { color: themeColors.text }]}>{formatAmount(totalExpenseThisMonth)}</Text>
+          <Text style={{ color: themeColors.subtext, fontSize: 12, marginBottom: 16 }}>This Month's Total</Text>
+
+          <AreaChart
+            data={chartData.data}
+            labels={chartData.labels}
+            color={TEAL}
             themeColors={themeColors}
           />
         </View>
 
-        {/* ═══════════ EXPENSE BREAKDOWN ═══════════ */}
-        <View style={[s.section, { backgroundColor: isDark ? "#1A2B32" : themeColors.card, borderColor: themeColors.border }]}>
+        {/* ═══════════ INCOME TRENDS ═══════════ */}
+        <View style={[s.section, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
           <View style={s.sectionHeader}>
-            <View>
-              <Text style={[s.sectionTitle, { color: themeColors.text }]}>Expense Breakdown</Text>
-              <Text style={[s.sectionSub, { color: themeColors.subtext }]}>All time by category</Text>
+            <Text style={[s.sectionTitle, { color: themeColors.text }]}>Income Trends</Text>
+          </View>
+
+          {/* Tab Chips */}
+          <View style={s.chipRow}>
+            {["Weekly", "Monthly", "Yearly"].map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[s.chip, activeIncomeTab === tab && { backgroundColor: ACCENT }]}
+                onPress={() => setActiveIncomeTab(tab)}
+                activeOpacity={0.7}
+              >
+                <Text style={[s.chipText, activeIncomeTab === tab && { color: "#fff" }]}>{tab}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Big Amount */}
+          <Text style={[s.chartBigAmount, { color: themeColors.text }]}>{formatAmount(totalIncomeThisMonth)}</Text>
+          <Text style={{ color: themeColors.subtext, fontSize: 12, marginBottom: 16 }}>This Month's Total</Text>
+
+          <AreaChart
+            data={incomeChartData.data}
+            labels={incomeChartData.labels}
+            color={ACCENT}
+            themeColors={themeColors}
+          />
+        </View>
+
+        {/* ═══════════ HIGHLIGHTS ═══════════ */}
+        <View style={s.statsRow}>
+          {/* Expense highlight */}
+          <View style={[s.colorStatCard, { backgroundColor: settings.theme === 'light' ? '#FFF5F5' : `${TEAL}15`, borderColor: settings.theme === 'light' ? '#FED7D7' : `${TEAL}30` }]}>
+            <View style={[s.colorStatIcon, { backgroundColor: "#E53E3E" }]}>
+              <Ionicons name="trending-up" size={16} color="#fff" />
+            </View>
+            <Text style={{ color: themeColors.text, fontSize: 20, fontWeight: "800", marginTop: 8 }}>{formatAmount(totalExpenseThisMonth)}</Text>
+            <Text style={{ color: themeColors.subtext, fontSize: 11, fontWeight: "600", marginTop: 2 }}>Total Expenses</Text>
+            <View style={{ marginTop: 8 }}>
+              <MiniSparkline data={expenseSpark} color="#E53E3E" width={90} height={22} />
             </View>
           </View>
 
-          {categoryBreakdown.length > 0 ? (
-            <>
-              <DonutChart data={categoryBreakdown} themeColors={themeColors} />
-
-              {/* Legend */}
-              <View style={s.legendGrid}>
-                {categoryBreakdown.map((item) => {
-                  const totalExp = expenses.reduce((s, e) => s + (e.totalAmount || 0), 0);
-                  const pct = totalExp > 0 ? ((item.value / totalExp) * 100).toFixed(1) : 0;
-                  return (
-                    <View key={item.name} style={s.legendItem}>
-                      <View style={[s.legendDot, { backgroundColor: item.color }]} />
-                      <Text style={[s.legendName, { color: themeColors.text }]}>{item.name}</Text>
-                      <Text style={[s.legendValue, { color: themeColors.subtext }]}>
-                        {formatINR(item.value)} ({pct}%)
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            </>
-          ) : (
-            <View style={s.emptyState}>
-              <Ionicons name="pie-chart-outline" size={40} color={themeColors.subtext} style={{ opacity: 0.3 }} />
-              <Text style={[s.emptyText, { color: themeColors.subtext }]}>No expenses this month</Text>
-              <TouchableOpacity
-                style={[s.emptyBtn, { backgroundColor: `${themeColors.primary}15` }]}
-                onPress={() => router.push("/(tabs)/expense")}
-              >
-                <Text style={{ color: themeColors.primary, fontWeight: "700", fontSize: 13 }}>Add your first expense</Text>
-              </TouchableOpacity>
+          {/* Income highlight */}
+          <View style={[s.colorStatCard, { backgroundColor: settings.theme === 'light' ? '#F0FFF4' : `${ACCENT}15`, borderColor: settings.theme === 'light' ? '#C6F6D5' : `${ACCENT}30` }]}>
+            <View style={[s.colorStatIcon, { backgroundColor: TEAL }]}>
+              <Ionicons name="trending-down" size={16} color="#fff" />
             </View>
-          )}
+            <Text style={{ color: themeColors.text, fontSize: 20, fontWeight: "800", marginTop: 8 }}>{formatAmount(totalIncomeThisMonth)}</Text>
+            <Text style={{ color: themeColors.subtext, fontSize: 11, fontWeight: "600", marginTop: 2 }}>Total Income</Text>
+            <View style={{ marginTop: 8 }}>
+              <MiniSparkline data={incomeSpark} color={TEAL} width={90} height={22} />
+            </View>
+          </View>
+        </View>
+
+        <View style={s.statsRow}>
+          {/* Transactions count */}
+          <View style={[s.colorStatCard, { backgroundColor: settings.theme === 'light' ? '#FFF9DB' : `${ACCENT}10`, borderColor: settings.theme === 'light' ? '#FFF3BF' : `${ACCENT}25` }]}>
+            <View style={[s.colorStatIcon, { backgroundColor: "#FB923C" }]}>
+              <Ionicons name="swap-horizontal" size={16} color="#fff" />
+            </View>
+            <Text style={{ color: themeColors.text, fontSize: 20, fontWeight: "800", marginTop: 8 }}>{expenses.length + incomes.length}</Text>
+            <Text style={{ color: themeColors.subtext, fontSize: 11, fontWeight: "600", marginTop: 2 }}>Transactions</Text>
+          </View>
+
+          {/* Net Savings */}
+          <View style={[s.colorStatCard, { backgroundColor: settings.theme === 'light' ? '#EBF8FF' : `${ACCENT}12`, borderColor: settings.theme === 'light' ? '#BEE3F8' : `${ACCENT}30` }]}>
+            <View style={[s.colorStatIcon, { backgroundColor: ACCENT }]}>
+              <Ionicons name="wallet" size={16} color="#fff" />
+            </View>
+            <Text style={{ color: themeColors.text, fontSize: 20, fontWeight: "800", marginTop: 8 }}>{formatAmount(netBalance)}</Text>
+            <Text style={{ color: "#7A7A6E", fontSize: 11, fontWeight: "600", marginTop: 2 }}>Net Savings</Text>
+          </View>
+        </View>
+
+        {/* ═══════════ WHAT TO DO TODAY ═══════════ */}
+        <View style={[s.section, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          <Text style={[s.sectionTitle, { color: themeColors.text, marginBottom: 16 }]}>What should we do today?</Text>
+
+          <TouchableOpacity
+            style={[s.actionRow, { borderColor: themeColors.border }]}
+            onPress={() => router.push("/(tabs)/expense")}
+            activeOpacity={0.7}
+          >
+            <View style={[s.actionIcon, { backgroundColor: "#FFEAEA" }]}>
+              <Ionicons name="wallet-outline" size={20} color="#E53E3E" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.actionTitle, { color: themeColors.text }]}>Track Expenses</Text>
+              <Text style={[s.actionSub, { color: themeColors.subtext }]}>Log today's spending</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={themeColors.subtext} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[s.actionRow, { borderColor: themeColors.border }]}
+            onPress={() => router.push("/(tabs)/income")}
+            activeOpacity={0.7}
+          >
+            <View style={[s.actionIcon, { backgroundColor: `${TEAL}15` }]}>
+              <Ionicons name="trending-up" size={20} color={TEAL} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.actionTitle, { color: themeColors.text }]}>Record Income</Text>
+              <Text style={[s.actionSub, { color: themeColors.subtext }]}>Add new payments received</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={themeColors.subtext} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[s.actionRow, { borderBottomWidth: 0 }]}
+            onPress={() => router.push("/data-management")}
+            activeOpacity={0.7}
+          >
+            <View style={[s.actionIcon, { backgroundColor: `${ACCENT}15` }]}>
+              <Ionicons name="document-text-outline" size={20} color={ACCENT} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.actionTitle, { color: themeColors.text }]}>Export Report</Text>
+              <Text style={[s.actionSub, { color: themeColors.subtext }]}>Download PDF summary</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={themeColors.subtext} />
+          </TouchableOpacity>
         </View>
 
         {/* ═══════════ RECENT TRANSACTIONS ═══════════ */}
-        <View style={[s.section, { backgroundColor: isDark ? "#1A2B32" : themeColors.card, borderColor: themeColors.border }]}>
+        <View style={[s.section, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
           <View style={s.sectionHeader}>
             <Text style={[s.sectionTitle, { color: themeColors.text }]}>Recent Transactions</Text>
             <Text style={[s.sectionSub, { color: themeColors.subtext }]}>Latest 10</Text>
@@ -582,33 +792,33 @@ export default function Dashboard() {
               {recentTransactions.map((txn, idx) => (
                 <TouchableOpacity
                   key={txn._id || idx}
-                  style={[s.txnRow, idx < recentTransactions.length - 1 && { borderBottomWidth: 1, borderBottomColor: `${themeColors.border}60` }]}
+                  style={[s.txnRow, idx < recentTransactions.length - 1 && { borderBottomWidth: 1, borderBottomColor: `${themeColors.border}` }]}
                   activeOpacity={0.6}
                   onPress={() => {
                     if (txn.type === "expense") router.push("/(tabs)/expense");
                     else router.push("/(tabs)/income");
                   }}
                 >
-                  <View style={[s.txnIcon, { backgroundColor: txn.type === "income" ? "rgba(74,222,128,0.12)" : "rgba(56,189,248,0.12)" }]}>
+                  <View style={[s.txnIcon, { backgroundColor: txn.type === "income" ? `${ACCENT}12` : `${TEAL}12` }]}>
                     <Ionicons
                       name={txn.type === "income" ? "arrow-down-outline" : "arrow-up-outline"}
                       size={18}
-                      color={txn.type === "income" ? "#4ADE80" : "#38BDF8"}
+                      color={txn.type === "income" ? ACCENT : TEAL}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[s.txnName, { color: themeColors.text }]}>{txn._name}</Text>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
-                      <View style={[s.txnChip, { backgroundColor: txn.type === "income" ? "rgba(74,222,128,0.12)" : "rgba(56,189,248,0.12)" }]}>
-                        <Text style={{ color: txn.type === "income" ? "#4ADE80" : "#38BDF8", fontSize: 10, fontWeight: "600" }}>
+                      <View style={[s.txnChip, { backgroundColor: txn.type === "income" ? `${ACCENT}12` : `${TEAL}12` }]}>
+                        <Text style={{ color: txn.type === "income" ? ACCENT : TEAL, fontSize: 10, fontWeight: "600" }}>
                           {txn.type === "income" ? "Income" : txn.category}
                         </Text>
                       </View>
                       <Text style={[s.txnDate, { color: themeColors.subtext }]}>{formatDate(txn._date)}</Text>
                     </View>
                   </View>
-                  <Text style={[s.txnAmount, { color: txn.type === "income" ? "#4ADE80" : "#38BDF8" }]}>
-                    {txn.type === "income" ? "+" : "-"}{formatINR(txn._amount)}
+                  <Text style={[s.txnAmount, { color: txn.type === "income" ? ACCENT : TEAL }]}>
+                    {txn.type === "income" ? "+" : "-"}{formatAmount(txn._amount)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -617,8 +827,8 @@ export default function Dashboard() {
                 style={[s.viewAllBtn, { borderColor: themeColors.border }]}
                 onPress={() => router.push("/(tabs)/expense")}
               >
-                <Text style={{ color: themeColors.primary, fontWeight: "700", fontSize: 14 }}>View All Transactions</Text>
-                <Ionicons name="arrow-forward" size={16} color={themeColors.primary} />
+                <Text style={{ color: TEAL, fontWeight: "700", fontSize: 14 }}>View All Transactions</Text>
+                <Ionicons name="arrow-forward" size={16} color={TEAL} />
               </TouchableOpacity>
             </>
           ) : (
@@ -626,60 +836,13 @@ export default function Dashboard() {
               <Ionicons name="receipt-outline" size={40} color={themeColors.subtext} style={{ opacity: 0.3 }} />
               <Text style={[s.emptyText, { color: themeColors.subtext }]}>No transactions yet</Text>
               <TouchableOpacity
-                style={[s.emptyBtn, { backgroundColor: `${themeColors.primary}15` }]}
+                style={[s.emptyBtn, { backgroundColor: `${TEAL}15` }]}
                 onPress={() => router.push("/(tabs)/expense")}
               >
-                <Text style={{ color: themeColors.primary, fontWeight: "700", fontSize: 13 }}>Add your first entry</Text>
+                <Text style={{ color: TEAL, fontWeight: "700", fontSize: 13 }}>Add your first entry</Text>
               </TouchableOpacity>
             </View>
           )}
-        </View>
-
-        {/* ═══════════ QUICK ACTIONS ═══════════ */}
-        <View style={s.quickActions}>
-          <TouchableOpacity
-            style={[s.quickBtn, { backgroundColor: "rgba(74,222,128,0.1)", borderColor: "rgba(74,222,128,0.2)" }]}
-            onPress={() => router.push("/(tabs)/expense")}
-            activeOpacity={0.7}
-          >
-            <View style={[s.quickIconWrap, { backgroundColor: "rgba(74,222,128,0.2)" }]}>
-              <Ionicons name="add-circle-outline" size={22} color="#4ADE80" />
-            </View>
-            <Text style={[s.quickLabel, { color: themeColors.text }]}>Add{"\n"}Expense</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[s.quickBtn, { backgroundColor: "rgba(56,189,248,0.1)", borderColor: "rgba(56,189,248,0.2)" }]}
-            onPress={() => router.push("/(tabs)/income")}
-            activeOpacity={0.7}
-          >
-            <View style={[s.quickIconWrap, { backgroundColor: "rgba(56,189,248,0.2)" }]}>
-              <Ionicons name="cash-outline" size={22} color="#38BDF8" />
-            </View>
-            <Text style={[s.quickLabel, { color: themeColors.text }]}>Add{"\n"}Income</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[s.quickBtn, { backgroundColor: "rgba(167,139,250,0.1)", borderColor: "rgba(167,139,250,0.2)" }]}
-            onPress={() => router.push("/data-management")}
-            activeOpacity={0.7}
-          >
-            <View style={[s.quickIconWrap, { backgroundColor: "rgba(167,139,250,0.2)" }]}>
-              <Ionicons name="download-outline" size={22} color="#A78BFA" />
-            </View>
-            <Text style={[s.quickLabel, { color: themeColors.text }]}>Export{"\n"}Report</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[s.quickBtn, { backgroundColor: "rgba(250,204,21,0.1)", borderColor: "rgba(250,204,21,0.2)" }]}
-            onPress={() => router.push("/(tabs)/profile")}
-            activeOpacity={0.7}
-          >
-            <View style={[s.quickIconWrap, { backgroundColor: "rgba(250,204,21,0.2)" }]}>
-              <Ionicons name="person-outline" size={22} color="#FACC15" />
-            </View>
-            <Text style={[s.quickLabel, { color: themeColors.text }]}>My{"\n"}Profile</Text>
-          </TouchableOpacity>
         </View>
 
         {/* ═══════════ FOOTER ═══════════ */}
@@ -708,14 +871,117 @@ const s = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: 20,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
   headerAvatar: { width: 48, height: 48, borderRadius: 24 },
   headerAvatarPH: { width: 48, height: 48, borderRadius: 24, justifyContent: "center", alignItems: "center" },
-  greeting: { fontSize: 15, fontWeight: "600" },
-  userName: { fontSize: 22, fontWeight: "800", letterSpacing: -0.3 },
-  headerRight: { flexDirection: "row", gap: 8 },
+  greeting: { fontSize: 13, fontWeight: "500" },
+  userName: { fontSize: 20, fontWeight: "800", letterSpacing: -0.3 },
+  balanceBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  balanceDot: { width: 8, height: 8, borderRadius: 4 },
+
+  /* ── Banner ── */
+  bannerCard: {
+    borderRadius: 22,
+    padding: 22,
+    marginBottom: 20,
+  },
+  bannerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  bannerDate: { color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: "600" },
+  bannerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  bannerBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+  bannerSubtitle: { color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: "600", marginBottom: 4 },
+  bannerAmount: { color: "#fff", fontSize: 32, fontWeight: "800", letterSpacing: -0.5, marginBottom: 16 },
+  bannerProgressBg: {
+    height: 6,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 3,
+    marginBottom: 8,
+    overflow: "hidden",
+  },
+  bannerProgressFill: {
+    height: 6,
+    backgroundColor: "#fff",
+    borderRadius: 3,
+  },
+  bannerProgressLabel: { color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: "500" },
+
+  /* ── Stat Cards ── */
+  statsRow: { flexDirection: "row", gap: 14, marginBottom: 14 },
+  statCard: {
+    flex: 1,
+    padding: 18,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  statTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 4,
+  },
+  statLabel: { fontSize: 13, fontWeight: "600", marginBottom: 8 },
+  pctBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+
+  /* ── Teal Cards ── */
+  tealCardFull: {
+    width: "100%",
+    padding: 22,
+    borderRadius: 22,
+  },
+  tealAmountBig: {
+    color: "#fff",
+    fontSize: 30,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  tealCard: {
+    flex: 1,
+    padding: 18,
+    borderRadius: 20,
+  },
+  tealAmount: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  tealPctBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
   headerIconBtn: {
     width: 44,
     height: 44,
@@ -723,46 +989,26 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  todayDate: { fontSize: 14, marginBottom: 22, paddingLeft: 2, fontWeight: "500" },
-
-  /* ── Hero Cards ── */
-  heroStack: { gap: 14, marginBottom: 24 },
-  heroCard: {
-    width: "100%",
-    padding: 20,
-    borderRadius: 22,
-    borderWidth: 1,
-  },
-  heroCardTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  heroIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  heroPctBadge: {
+  activeBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
+    gap: 6,
+    backgroundColor: "rgba(212, 168, 83, 0.12)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  heroLabel: { fontSize: 13, fontWeight: "600", marginBottom: 6 },
-  heroAmount: { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 },
-  heroBottom: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginTop: 10,
+  activeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#D4A853",
   },
-  heroSub: { fontSize: 12 },
+  activeText: {
+    color: "#D4A853",
+    fontSize: 13,
+    fontWeight: "700",
+  },
 
   /* ── Sections ── */
   section: {
@@ -775,17 +1021,61 @@ const s = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 18,
+    marginBottom: 14,
   },
   sectionTitle: { fontSize: 17, fontWeight: "700" },
   sectionSub: { fontSize: 11, marginTop: 2 },
 
-  /* ── Legend ── */
-  legendGrid: { marginTop: 18, gap: 10 },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 8 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendName: { fontSize: 13, fontWeight: "600", flex: 1 },
-  legendValue: { fontSize: 12 },
+  /* ── Chart ── */
+  chipRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.04)",
+  },
+  chipText: { fontSize: 12, fontWeight: "600", color: "#7A7A6E" },
+  chartBigAmount: { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 },
+
+  /* ── Highlights ── */
+  highlightRow: { flexDirection: "row", gap: 12, marginBottom: 18 },
+  highlightCard: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  colorStatCard: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  colorStatIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  /* ── Action Rows ── */
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    gap: 14,
+    borderBottomWidth: 1,
+  },
+  actionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  actionTitle: { fontSize: 15, fontWeight: "600" },
+  actionSub: { fontSize: 12, marginTop: 2 },
 
   /* ── Transactions ── */
   txnRow: {
@@ -815,28 +1105,12 @@ const s = StyleSheet.create({
     gap: 6,
   },
 
-  /* ── Quick Actions ── */
-  quickActions: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 24,
-  },
-  quickBtn: {
-    flex: 1,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 14,
-    alignItems: "center",
-    gap: 8,
-  },
-  quickIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  quickLabel: { fontSize: 11, fontWeight: "600", textAlign: "center", lineHeight: 15 },
+  /* ── Legend ── */
+  legendGrid: { marginTop: 18, gap: 10 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 8 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendName: { fontSize: 13, fontWeight: "600", flex: 1 },
+  legendValue: { fontSize: 12 },
 
   /* ── Empty State ── */
   emptyState: { alignItems: "center", paddingVertical: 30, gap: 10 },
@@ -875,7 +1149,7 @@ const chartStyles = StyleSheet.create({
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
   },
-  incBar: { backgroundColor: "#4ADE80" },
-  expBar: { backgroundColor: "#38BDF8" },
+  incBar: { backgroundColor: "#D4A853" },
+  expBar: { backgroundColor: "#5B8A72" },
   mLabel: { fontSize: 10, fontWeight: "600" },
 });

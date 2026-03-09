@@ -250,7 +250,7 @@ export default function DataManagement() {
                     {/* Backup Section */}
                     <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
                         <View style={styles.cardHeader}>
-                            <Ionicons name="cloud-done-outline" size={24} color="#38BDF8" />
+                            <Ionicons name="cloud-done-outline" size={24} color="#5B8A72" />
                             <Text style={[styles.cardTitle, { color: themeColors.text }]}>Cloud Sync</Text>
                         </View>
 
@@ -302,7 +302,7 @@ export default function DataManagement() {
                                     <Text style={[
                                         styles.freqText,
                                         { color: themeColors.subtext },
-                                        stats?.backupFrequency === f && { color: themeColors.primary, fontWeight: '700' }
+                                        stats?.backupFrequency === f && { color: "#5B8A72", fontWeight: '700' }
                                     ]}>
                                         {t(f.toLowerCase())}
                                     </Text>
@@ -314,7 +314,7 @@ export default function DataManagement() {
                     {/* Export / Import Section */}
                     <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
                         <View style={styles.cardHeader}>
-                            <Ionicons name="document-text-outline" size={24} color="#FACC15" />
+                            <Ionicons name="document-text-outline" size={24} color="#D4A853" />
                             <Text style={[styles.cardTitle, { color: themeColors.text }]}>Files & Reports</Text>
                         </View>
 
@@ -380,7 +380,7 @@ export default function DataManagement() {
                 <Modal visible={clearModalVisible} transparent animationType="slide">
                     <View style={styles.modalOverlay}>
                         <View style={[styles.modalContent, {
-                            backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2E35",
+                            backgroundColor: themeColors.card,
                             borderColor: themeColors.border
                         }]}>
                             <Text style={[styles.modalTitle, { color: themeColors.text }]}>{t("clear_all_data")}</Text>
@@ -417,7 +417,7 @@ export default function DataManagement() {
                 <Modal visible={rangeModalVisible} transparent animationType="fade">
                     <View style={styles.modalOverlay}>
                         <View style={[styles.modalContent, {
-                            backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2E35",
+                            backgroundColor: themeColors.card,
                             borderColor: themeColors.border
                         }]}>
                             <Text style={[styles.modalTitle, { color: themeColors.text }]}>Export PDF Range</Text>
@@ -458,15 +458,21 @@ export default function DataManagement() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+    container: {
+        flex: 1
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center"
+    },
     header: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
         paddingHorizontal: 20,
-        paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight + 10) : 10,
+        paddingTop: Platform.OS === "android" ? 40 : 10,
         paddingBottom: 15,
+        gap: 16,
     },
     backBtn: {
         width: 44,
@@ -476,65 +482,238 @@ const styles = StyleSheet.create({
         alignItems: "center",
         borderWidth: 1,
     },
-    headerTitle: { fontSize: 20, fontWeight: "800" },
-    scrollContent: { padding: 20 },
-    card: {
-        borderRadius: 24,
-        padding: 24,
-        marginBottom: 20,
-        borderWidth: 1,
+    headerTitle: {
+        fontSize: 22,
+        fontWeight: "800"
     },
-    cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 20, gap: 12 },
-    cardTitle: { fontSize: 18, fontWeight: "700" },
-    storageInfo: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-    storageText: { fontSize: 14, fontWeight: "600" },
-    storagePercent: { fontSize: 14, fontWeight: "800" },
-    pBarBg: { height: 8, borderRadius: 4, overflow: "hidden" },
-    pBarFill: { height: "100%", borderRadius: 4 },
-    infoRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
-    infoLabel: { fontSize: 13 },
-    infoValue: { fontSize: 14, fontWeight: "600" },
+    scrollContent: {
+        padding: 20,
+        paddingBottom: 40,
+    },
+    card: {
+        borderRadius: 28,
+        padding: 24,
+        marginBottom: 24,
+        borderWidth: 1,
+        elevation: 2,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+    },
+    cardHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 24,
+        gap: 12
+    },
+    cardTitle: {
+        fontSize: 18,
+        fontWeight: "800"
+    },
+    storageInfo: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: 12
+    },
+    storageText: {
+        fontSize: 14,
+        fontWeight: "700",
+        opacity: 0.8
+    },
+    storagePercent: {
+        fontSize: 15,
+        fontWeight: "800"
+    },
+    pBarBg: {
+        height: 10,
+        borderRadius: 5,
+        overflow: "hidden",
+        marginBottom: 24
+    },
+    pBarFill: {
+        height: "100%",
+        borderRadius: 5
+    },
+    infoRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: 20
+    },
+    infoLabel: {
+        fontSize: 13,
+        fontWeight: "600",
+        opacity: 0.7
+    },
+    infoValue: {
+        fontSize: 15,
+        fontWeight: "700"
+    },
     actionBtn: {
         flexDirection: "row",
-        height: 56,
-        borderRadius: 16,
+        height: 60,
+        borderRadius: 18,
         alignItems: "center",
         justifyContent: "center",
-        gap: 10,
+        gap: 12,
+        elevation: 4,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
     },
-    actionBtnText: { fontSize: 16, fontWeight: "700" },
-    smallHeading: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1 },
-    freqRow: { flexDirection: "row", gap: 8, marginTop: 12 },
-    freqChip: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
-    freqText: { fontSize: 12, fontWeight: "600" },
-    gridActions: { flexDirection: "row", gap: 12 },
-    gridBtn: { flex: 1, height: 80, borderRadius: 20, justifyContent: "center", alignItems: "center", gap: 8 },
-    gridBtnText: { fontSize: 14, fontWeight: "600" },
+    actionBtnText: {
+        fontSize: 16,
+        fontWeight: "800"
+    },
+    smallHeading: {
+        fontSize: 12,
+        fontWeight: "800",
+        textTransform: "uppercase",
+        letterSpacing: 2,
+        marginBottom: 16,
+        marginLeft: 4,
+    },
+    freqRow: {
+        flexDirection: "row",
+        gap: 10,
+        marginTop: 4
+    },
+    freqChip: {
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "transparent",
+    },
+    freqText: {
+        fontSize: 13,
+        fontWeight: "700"
+    },
+    gridActions: {
+        flexDirection: "row",
+        gap: 12
+    },
+    gridBtn: {
+        flex: 1,
+        height: 90,
+        borderRadius: 24,
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 10,
+        borderWidth: 1,
+    },
+    gridBtnText: {
+        fontSize: 14,
+        fontWeight: "700"
+    },
     importBtn: {
-        height: 56,
-        borderRadius: 16,
+        height: 60,
+        borderRadius: 18,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
-        gap: 10,
+        gap: 12,
         borderWidth: 2,
         borderStyle: "dashed",
     },
-    importBtnText: { fontSize: 16, fontWeight: "600" },
-    dangerNote: { fontSize: 13, lineHeight: 20, marginBottom: 20 },
-    dangerBtn: { height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-    dangerBtnText: { fontWeight: "700", fontSize: 16 },
-    modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", padding: 25 },
-    modalContent: { padding: 24, borderRadius: 28, borderWidth: 1 },
-    modalTitle: { fontSize: 22, fontWeight: "800", marginBottom: 10 },
-    modalSub: { fontSize: 14, marginBottom: 20 },
-    passInput: { height: 56, borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, fontSize: 16, marginBottom: 25 },
-    modalActions: { flexDirection: "row", gap: 12 },
-    mBtn: { flex: 1, height: 56, borderRadius: 16, justifyContent: "center", alignItems: "center" },
-    mBtnText: { fontSize: 16, fontWeight: "700" },
-    rangeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-    rangeBtn: { width: '48%', height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-    rangeBtnText: { fontWeight: '600' },
-    cancelBtn: { height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center', width: '100%' },
-    cancelBtnText: { fontWeight: '700' },
+    importBtnText: {
+        fontSize: 16,
+        fontWeight: "700"
+    },
+    dangerNote: {
+        fontSize: 14,
+        lineHeight: 22,
+        marginBottom: 24,
+        opacity: 0.8
+    },
+    dangerBtn: {
+        height: 60,
+        borderRadius: 18,
+        alignItems: "center",
+        justifyContent: "center",
+        elevation: 4,
+    },
+    dangerBtnText: {
+        fontWeight: "800",
+        fontSize: 16,
+        letterSpacing: 0.5
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(15,32,39,0.8)",
+        justifyContent: "center",
+        padding: 24
+    },
+    modalContent: {
+        padding: 28,
+        borderRadius: 32,
+        borderWidth: 1,
+        elevation: 8,
+    },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: "800",
+        marginBottom: 12
+    },
+    modalSub: {
+        fontSize: 15,
+        lineHeight: 22,
+        marginBottom: 24,
+        opacity: 0.8
+    },
+    passInput: {
+        height: 60,
+        borderWidth: 1.5,
+        borderRadius: 16,
+        paddingHorizontal: 18,
+        fontSize: 16,
+        marginBottom: 28,
+        fontWeight: "600"
+    },
+    modalActions: {
+        flexDirection: "row",
+        gap: 12
+    },
+    mBtn: {
+        flex: 1,
+        height: 56,
+        borderRadius: 16,
+        justifyContent: "center",
+        alignItems: "center"
+    },
+    mBtnText: {
+        fontSize: 16,
+        fontWeight: "700"
+    },
+    rangeGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        marginBottom: 24
+    },
+    rangeBtn: {
+        width: '48%',
+        height: 54,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+    },
+    rangeBtnText: {
+        fontWeight: '700',
+        fontSize: 14
+    },
+    cancelBtn: {
+        height: 54,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%',
+        borderWidth: 1,
+    },
+    cancelBtnText: {
+        fontWeight: '800',
+        fontSize: 15
+    },
 });

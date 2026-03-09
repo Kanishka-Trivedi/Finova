@@ -89,24 +89,21 @@ export const AppLockProvider = ({ children }) => {
             const prev = appState.current;
             appState.current = nextState;
 
-            if (
-                (prev === "active" && nextState === "background") ||
-                nextState === "inactive"
-            ) {
-                // App going to background — note the time
+            if (nextState === "background" || nextState === "inactive") {
+                // App going to background or inactive — note the time
                 backgroundedAt.current = Date.now();
-                // Clear any existing timer
-                if (autoLockTimer.current) {
-                    clearTimeout(autoLockTimer.current);
-                    autoLockTimer.current = null;
+
+                // If timer is 0 (Lock immediately), we can lock right now
+                if (lockSettings?.autoLockTimer === 0 && (lockSettings?.hasPin || lockSettings?.biometricsEnabled)) {
+                    setIsLocked(true);
                 }
             }
 
             if (nextState === "active" && prev !== "active") {
                 // App coming to foreground
-                const elapsed = backgroundedAt.current
-                    ? (Date.now() - backgroundedAt.current) / 1000
-                    : 0;
+                const now = Date.now();
+                const backgroundTime = backgroundedAt.current || now;
+                const elapsed = (now - backgroundTime) / 1000;
 
                 const settings = lockSettings;
                 if (!settings) return;
@@ -114,12 +111,14 @@ export const AppLockProvider = ({ children }) => {
                 const timerSecs = settings.autoLockTimer || 0;
                 const hasProtection = settings.hasPin || settings.biometricsEnabled;
 
-                if (hasProtection && timerSecs > 0 && elapsed >= timerSecs) {
-                    // Lock the app
-                    setIsLocked(true);
-                } else if (hasProtection && timerSecs === 0 && elapsed > 0) {
-                    // autoLockTimer = 0 with protection enabled means "lock immediately on background"
-                    // We treat 0 as "disabled" per the UI, so skip.
+                if (hasProtection) {
+                    if (timerSecs === 0) {
+                        // "Off" (value 0) usually means never lock, but if intended as "Immediately", 
+                        // the previous logic handled it. If 0 is "Off", we skip. 
+                        // User said auto lock not working for 30s, so timer is likely > 0.
+                    } else if (elapsed >= timerSecs) {
+                        setIsLocked(true);
+                    }
                 }
             }
         });

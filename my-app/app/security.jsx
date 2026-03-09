@@ -317,6 +317,8 @@ export default function SecuritySettings() {
     const [otpLoading, setOtpLoading] = useState(false);
     const [pendingTwoFactor, setPendingTwoFactor] = useState(false);
 
+    const [showAllActivity, setShowAllActivity] = useState(false);
+
     /* ─ auto-lock ─ */
     const AUTO_LOCK_OPTIONS = [
         { label: "Off", value: 0 },
@@ -928,59 +930,85 @@ export default function SecuritySettings() {
                     />
                     <View style={[secStyles.card, { backgroundColor: cardBg, borderColor: themeColors.border }]}>
                         {secSettings?.loginActivity?.length > 0 ? (
-                            secSettings.loginActivity.slice(0, 5).map((entry, idx) => (
-                                <View
-                                    key={idx}
-                                    style={[
-                                        secStyles.activityRow,
-                                        { borderBottomColor: themeColors.border },
-                                        idx === Math.min(secSettings.loginActivity.length, 5) - 1 && { borderBottomWidth: 0 },
-                                    ]}
-                                >
-                                    <View
-                                        style={[
-                                            secStyles.activityIconWrap,
-                                            { backgroundColor: idx === 0 ? "#4ADE8020" : themeColors.border },
-                                        ]}
-                                    >
-                                        <Ionicons
-                                            name={getDeviceIcon(entry.device)}
-                                            size={20}
-                                            color={idx === 0 ? "#4ADE80" : themeColors.subtext}
-                                        />
-                                    </View>
-                                    <View style={{ flex: 1, marginLeft: 12 }}>
-                                        <View style={secStyles.activityTopRow}>
-                                            <Text
-                                                style={[secStyles.activityDevice, { color: themeColors.text }]}
-                                                numberOfLines={1}
+                            <>
+                                {(showAllActivity
+                                    ? secSettings.loginActivity
+                                    : secSettings.loginActivity.slice(0, 4)
+                                ).map((entry, idx) => {
+                                    const isLast = idx === (showAllActivity ? secSettings.loginActivity.length : Math.min(secSettings.loginActivity.length, 4)) - 1;
+                                    return (
+                                        <View
+                                            key={idx}
+                                            style={[
+                                                secStyles.activityRow,
+                                                { borderBottomColor: themeColors.border },
+                                                isLast && { borderBottomWidth: 0 },
+                                            ]}
+                                        >
+                                            <View
+                                                style={[
+                                                    secStyles.activityIconWrap,
+                                                    { backgroundColor: idx === 0 ? "#4ADE8020" : themeColors.border + "40" },
+                                                ]}
                                             >
-                                                {entry.device || "Unknown Device"}
-                                            </Text>
-                                            {idx === 0 && (
-                                                <View style={[secStyles.currentBadge, { backgroundColor: "#4ADE8020" }]}>
-                                                    <Text style={[secStyles.currentBadgeText, { color: "#4ADE80" }]}>
-                                                        Latest
+                                                <Ionicons
+                                                    name={getDeviceIcon(entry.device)}
+                                                    size={20}
+                                                    color={idx === 0 ? "#4ADE80" : themeColors.subtext}
+                                                />
+                                            </View>
+                                            <View style={{ flex: 1, marginLeft: 14 }}>
+                                                <View style={secStyles.activityTopRow}>
+                                                    <Text
+                                                        style={[secStyles.activityDevice, { color: themeColors.text }]}
+                                                        numberOfLines={1}
+                                                    >
+                                                        {entry.device || "Unknown Device"}
                                                     </Text>
+                                                    {idx === 0 && (
+                                                        <View style={[secStyles.currentBadge, { backgroundColor: "#4ADE8020" }]}>
+                                                            <Text style={[secStyles.currentBadgeText, { color: "#4ADE80" }]}>
+                                                                Latest
+                                                            </Text>
+                                                        </View>
+                                                    )}
                                                 </View>
-                                            )}
+                                                <Text style={[secStyles.activityTime, { color: themeColors.subtext }]}>
+                                                    {formatTimestamp(entry.timestamp)}
+                                                </Text>
+                                                {entry.ip && (
+                                                    <Text style={[secStyles.activityIp, { color: themeColors.subtext }]}>
+                                                        IP: {entry.ip}
+                                                    </Text>
+                                                )}
+                                            </View>
                                         </View>
-                                        <Text style={[secStyles.activityTime, { color: themeColors.subtext }]}>
-                                            {formatTimestamp(entry.timestamp)}
+                                    );
+                                })}
+
+                                {secSettings.loginActivity.length > 4 && (
+                                    <TouchableOpacity
+                                        onPress={() => setShowAllActivity(!showAllActivity)}
+                                        style={[secStyles.viewMoreBtn, { borderTopColor: themeColors.border }]}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Text style={[secStyles.viewMoreText, { color: themeColors.primary }]}>
+                                            {showAllActivity ? "Show Less" : `View ${secSettings.loginActivity.length - 4} More Sessions`}
                                         </Text>
-                                        {entry.ip && (
-                                            <Text style={[secStyles.activityIp, { color: themeColors.subtext }]}>
-                                                IP: {entry.ip}
-                                            </Text>
-                                        )}
-                                    </View>
-                                </View>
-                            ))
+                                        <Ionicons
+                                            name={showAllActivity ? "chevron-up" : "chevron-down"}
+                                            size={16}
+                                            color={themeColors.primary}
+                                            style={{ marginTop: 2 }}
+                                        />
+                                    </TouchableOpacity>
+                                )}
+                            </>
                         ) : (
                             <View style={secStyles.emptyActivity}>
-                                <Ionicons name="time-outline" size={36} color={themeColors.subtext} />
+                                <Ionicons name="time-outline" size={40} color={themeColors.subtext} />
                                 <Text style={[secStyles.emptyText, { color: themeColors.subtext }]}>
-                                    No login history yet
+                                    No login history available
                                 </Text>
                             </View>
                         )}
@@ -1034,14 +1062,17 @@ export default function SecuritySettings() {
 
 /* ─── Styles ─── */
 const secStyles = StyleSheet.create({
+    scroll: {
+        padding: 20,
+        paddingBottom: 60,
+    },
     header: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
         paddingHorizontal: 20,
-        paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 0) + 8 : 8,
-        paddingBottom: 14,
-        borderBottomWidth: 1,
+        paddingTop: Platform.OS === "android" ? 40 : 10,
+        paddingBottom: 15,
+        gap: 16,
     },
     backBtn: {
         width: 44,
@@ -1051,58 +1082,65 @@ const secStyles = StyleSheet.create({
         alignItems: "center",
         borderWidth: 1,
     },
-    headerTitle: { fontSize: 22, fontWeight: "800", letterSpacing: -0.3 },
-    headerSub: { fontSize: 12, marginTop: 2 },
-    scroll: { padding: 20 },
+    headerTitle: {
+        fontSize: 22,
+        fontWeight: "800",
+    },
+    headerSub: {
+        fontSize: 13,
+        fontWeight: "600",
+        opacity: 0.7,
+    },
 
-    /* Section headers */
+    /* ──── Cards ──── */
+    card: {
+        borderRadius: 24,
+        borderWidth: 1,
+        marginBottom: 24,
+        overflow: "hidden",
+    },
     sectionHeader: {
         flexDirection: "row",
         alignItems: "center",
+        marginBottom: 12,
+        marginLeft: 4,
         gap: 10,
-        marginBottom: 10,
-        marginTop: 4,
-        paddingBottom: 10,
-        borderBottomWidth: 1,
     },
     sectionIconWrap: {
-        width: 30,
-        height: 30,
+        width: 32,
+        height: 32,
         borderRadius: 10,
         justifyContent: "center",
         alignItems: "center",
     },
     sectionTitle: {
-        fontSize: 11,
-        fontWeight: "700",
-        letterSpacing: 1.4,
+        fontSize: 12,
+        fontWeight: "800",
         textTransform: "uppercase",
+        letterSpacing: 1.5,
     },
 
-    /* Card */
-    card: {
-        borderRadius: 24,
-        borderWidth: 1,
-        marginBottom: 22,
-        overflow: "hidden",
-    },
-
-    /* Rows */
     row: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 18,
-        paddingVertical: 16,
+        padding: 18,
         borderBottomWidth: 1,
     },
+    rowLabel: {
+        fontSize: 16,
+        fontWeight: "700",
+    },
+    rowSublabel: {
+        fontSize: 12,
+        marginTop: 4,
+        opacity: 0.7,
+    },
+
     expandRow: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 18,
-        paddingVertical: 16,
+        padding: 18,
     },
-    rowLabel: { fontSize: 15, fontWeight: "600" },
-    rowSublabel: { fontSize: 12, marginTop: 3, lineHeight: 18 },
     settingIconBg: {
         width: 40,
         height: 40,
@@ -1111,197 +1149,358 @@ const secStyles = StyleSheet.create({
         alignItems: "center",
     },
 
-    /* Password form */
+    /* ──── Form ──── */
     pwForm: {
-        paddingHorizontal: 18,
-        paddingBottom: 18,
+        padding: 18,
         borderTopWidth: 1,
-        paddingTop: 18,
     },
-    inputLabel: { fontSize: 12, fontWeight: "600", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.8 },
+    inputLabel: {
+        fontSize: 11,
+        fontWeight: "700",
+        textTransform: "uppercase",
+        letterSpacing: 1,
+        marginBottom: 8,
+    },
     inputRow: {
         flexDirection: "row",
         alignItems: "center",
-        borderWidth: 1,
-        borderRadius: 14,
-        paddingHorizontal: 14,
-        height: 52,
-    },
-    input: { flex: 1, fontSize: 15 },
-    strengthRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 8 },
-    strengthBar: { flex: 1, height: 4, borderRadius: 4 },
-    strengthLabel: { fontSize: 11, fontWeight: "600", marginLeft: 4, width: 46 },
-    saveBtn: {
-        height: 52,
+        borderWidth: 1.5,
         borderRadius: 16,
+        paddingHorizontal: 16,
+        height: 54,
+    },
+    input: {
+        flex: 1,
+        fontSize: 15,
+        fontWeight: "600",
+    },
+
+    strengthRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 10,
+        gap: 6,
+    },
+    strengthBar: {
+        flex: 1,
+        height: 4,
+        borderRadius: 2,
+    },
+    strengthLabel: {
+        fontSize: 11,
+        fontWeight: "700",
+        marginLeft: 10,
+    },
+
+    saveBtn: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        gap: 8,
+        height: 56,
+        borderRadius: 18,
+        gap: 12,
     },
-    saveBtnText: { color: "#0F2027", fontWeight: "700", fontSize: 15 },
+    saveBtnText: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: "#0F2027",
+    },
 
-    /* PIN lock */
-    pinLenRow: { flexDirection: "row", gap: 8 },
-    pinLenChip: {
-        width: 44,
-        height: 36,
-        borderRadius: 10,
-        borderWidth: 1.5,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    pinLenText: { fontWeight: "700", fontSize: 15 },
-    smallBtn: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 10,
-        borderWidth: 1.5,
-    },
-    smallBtnText: { fontWeight: "700", fontSize: 13 },
-
-    /* Auto-lock chips */
+    /* ──── Auto Lock ──── */
     autoLockHeader: {
-        paddingHorizontal: 18,
-        paddingTop: 16,
-        paddingBottom: 14,
+        padding: 18,
+        paddingBottom: 12,
     },
     lockChipGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        gap: 8,
-        paddingHorizontal: 18,
-        paddingBottom: 18,
+        padding: 18,
+        paddingTop: 0,
+        gap: 10,
     },
     lockChip: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 5,
-        paddingHorizontal: 14,
+        paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: 12,
         borderWidth: 1.5,
-    },
-    lockChipDot: { width: 7, height: 7, borderRadius: 4 },
-    lockChipText: { fontWeight: "600", fontSize: 13 },
-
-    /* 2FA */
-    twoFaBanner: {
         flexDirection: "row",
         alignItems: "center",
         gap: 8,
-        marginHorizontal: 18,
-        marginBottom: 16,
-        padding: 12,
-        borderRadius: 12,
-        borderWidth: 1,
     },
-    twoFaBannerText: { fontSize: 12, fontWeight: "600", flex: 1 },
+    lockChipDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    lockChipText: {
+        fontSize: 13,
+        fontWeight: "700",
+    },
 
-    /* Login activity */
+    /* ──── Login Activity ──── */
     activityRow: {
         flexDirection: "row",
-        alignItems: "flex-start",
-        paddingHorizontal: 18,
-        paddingVertical: 14,
+        alignItems: "center",
+        padding: 18,
         borderBottomWidth: 1,
     },
     activityIconWrap: {
-        width: 42,
+        width: 46,
+        height: 46,
+        borderRadius: 14,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    activityTopRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 10,
+    },
+    activityDevice: {
+        fontSize: 15,
+        fontWeight: "700",
+        flex: 1,
+    },
+    activityTime: {
+        fontSize: 12,
+        marginTop: 3,
+        opacity: 0.7,
+    },
+    activityIp: {
+        fontSize: 11,
+        marginTop: 1,
+        opacity: 0.5,
+    },
+    viewMoreBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 16,
+        gap: 8,
+    },
+    viewMoreText: {
+        fontSize: 13,
+        fontWeight: "800",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    emptyActivity: {
+        alignItems: "center",
+        padding: 40,
+        gap: 12,
+    },
+    emptyText: {
+        fontSize: 14,
+        fontWeight: "600",
+        opacity: 0.6,
+    },
+
+    /* ──── Buttons ──── */
+    smallBtn: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    smallBtnText: {
+        fontSize: 13,
+        fontWeight: "700",
+    },
+
+    /* ──── PIN Length ──── */
+    pinLenRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    pinLenChip: {
+        width: 48,
         height: 42,
         borderRadius: 12,
+        borderWidth: 1.5,
         justifyContent: "center",
         alignItems: "center",
     },
-    activityTopRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-    activityDevice: { fontSize: 14, fontWeight: "600", flex: 1 },
-    activityTime: { fontSize: 12, marginTop: 3 },
-    activityIp: { fontSize: 11, marginTop: 2 },
-    currentBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
-    currentBadgeText: { fontSize: 10, fontWeight: "700" },
-    emptyActivity: { alignItems: "center", paddingVertical: 30, gap: 10 },
-    emptyText: { fontSize: 14 },
+    pinLenText: {
+        fontSize: 14,
+        fontWeight: "800",
+    },
 
-    /* Modals */
+    /* ──── Sessions (Keep for ref or remove) ──── */
+    sessionCard: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        gap: 14,
+    },
+    deviceIconWrap: {
+        width: 46,
+        height: 46,
+        borderRadius: 14,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    deviceName: {
+        fontSize: 15,
+        fontWeight: "700",
+    },
+    deviceMeta: {
+        fontSize: 11,
+        marginTop: 4,
+        opacity: 0.7,
+    },
+    currentBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    currentBadgeText: {
+        fontSize: 10,
+        fontWeight: "800",
+        textTransform: "uppercase",
+    },
+    logoutDeviceBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+
+    /* ──── Modals ──── */
     modalOverlay: {
         flex: 1,
-        backgroundColor: "rgba(0,0,0,0.7)",
-        justifyContent: "flex-end",
+        backgroundColor: "rgba(15,32,39,0.8)",
+        justifyContent: "center",
+        padding: 24,
     },
-
-    /* PIN Modal */
     pinModal: {
-        borderTopLeftRadius: 32,
-        borderTopRightRadius: 32,
+        borderRadius: 32,
+        padding: 24,
         borderWidth: 1,
-        paddingTop: 12,
-        paddingBottom: 40,
-        paddingHorizontal: 28,
-        alignItems: "center",
     },
-    pinCloseBtn: { alignSelf: "flex-end", padding: 8, marginBottom: 8 },
-    pinTitle: { fontSize: 22, fontWeight: "800", textAlign: "center", marginBottom: 6 },
-    pinSubtitle: { fontSize: 13, textAlign: "center", marginBottom: 28 },
-    dotsRow: { flexDirection: "row", gap: 16, marginBottom: 32 },
-    dot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2 },
-    padGrid: { gap: 16, width: "100%", maxWidth: 280 },
-    padRow: { flexDirection: "row", justifyContent: "space-between", gap: 16 },
+    pinCloseBtn: {
+        alignSelf: "flex-end",
+        padding: 4,
+    },
+    pinTitle: {
+        fontSize: 22,
+        fontWeight: "800",
+        textAlign: "center",
+        marginTop: 10,
+    },
+    pinSubtitle: {
+        fontSize: 14,
+        textAlign: "center",
+        marginTop: 8,
+        opacity: 0.7,
+    },
+    dotsRow: {
+        flexDirection: "row",
+        justifyContent: "center",
+        gap: 16,
+        marginVertical: 32,
+    },
+    dot: {
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        borderWidth: 2,
+    },
+    padGrid: {
+        gap: 12,
+    },
+    padRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        gap: 12,
+    },
     padKey: {
         flex: 1,
-        height: 68,
+        height: 64,
         borderRadius: 18,
         justifyContent: "center",
         alignItems: "center",
         borderWidth: 1,
     },
-    padKeyText: { fontSize: 26, fontWeight: "700" },
+    padKeyText: {
+        fontSize: 22,
+        fontWeight: "700",
+    },
     pinConfirmBtn: {
-        marginTop: 28,
-        height: 56,
-        width: "100%",
-        borderRadius: 18,
+        height: 60,
+        borderRadius: 20,
         justifyContent: "center",
         alignItems: "center",
+        marginTop: 24,
     },
-    pinConfirmText: { fontSize: 16, fontWeight: "700" },
+    pinConfirmText: {
+        fontSize: 17,
+        fontWeight: "800",
+    },
 
-    /* OTP Modal */
+    /* ──── OTP ──── */
     otpModal: {
-        borderTopLeftRadius: 32,
-        borderTopRightRadius: 32,
+        borderRadius: 32,
+        padding: 30,
         borderWidth: 1,
-        padding: 28,
-        paddingBottom: 44,
         alignItems: "center",
     },
     otpIconWrap: {
-        width: 72,
-        height: 72,
-        borderRadius: 22,
+        width: 80,
+        height: 80,
+        borderRadius: 24,
         justifyContent: "center",
         alignItems: "center",
-        marginBottom: 18,
+        marginBottom: 20,
     },
-    otpTitle: { fontSize: 22, fontWeight: "800", marginBottom: 8, textAlign: "center" },
-    otpSub: { fontSize: 13, textAlign: "center", lineHeight: 20, marginBottom: 28 },
-    otpRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
-    otpBox: {
-        width: 46,
-        height: 56,
-        borderWidth: 2,
-        borderRadius: 14,
-        textAlign: "center",
+    otpTitle: {
         fontSize: 22,
         fontWeight: "800",
+        textAlign: "center",
     },
-    otpHint: { fontSize: 11, marginBottom: 24, textAlign: "center" },
-    otpActions: { flexDirection: "row", gap: 12, width: "100%" },
+    otpSub: {
+        fontSize: 14,
+        textAlign: "center",
+        marginTop: 10,
+        lineHeight: 20,
+    },
+    otpRow: {
+        flexDirection: "row",
+        justifyContent: "center",
+        gap: 10,
+        marginVertical: 24,
+    },
+    otpBox: {
+        width: 44,
+        height: 54,
+        borderRadius: 14,
+        borderWidth: 2,
+        textAlign: "center",
+        fontSize: 20,
+        fontWeight: "800",
+    },
+    otpHint: {
+        fontSize: 12,
+        opacity: 0.6,
+        marginBottom: 24,
+    },
+    otpActions: {
+        flexDirection: "row",
+        gap: 12,
+        width: "100%",
+    },
     otpBtn: {
         flex: 1,
-        height: 52,
-        borderRadius: 16,
+        height: 56,
+        borderRadius: 18,
         justifyContent: "center",
         alignItems: "center",
     },
-    otpBtnText: { fontSize: 16, fontWeight: "700" },
+    otpBtnText: {
+        fontSize: 16,
+        fontWeight: "700",
+    },
 });

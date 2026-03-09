@@ -24,40 +24,37 @@ import axios from "axios";
 
 const { width } = Dimensions.get("window");
 
-export default function ExpenseDetail() {
+export default function IncomeDetail() {
     const params = useLocalSearchParams();
     const router = useRouter();
     const { userToken } = useContext(AuthContext);
     const { t, themeColors, settings, currencySymbol, formatAmount, convertToDisplay, convertToBase } = useSettings();
 
     // Initial state from params
-    const [expenseData, setExpenseData] = useState({
-        vendorName: params.vendorName,
-        totalAmount: Number(params.totalAmount),
+    const [incomeData, setIncomeData] = useState({
+        dealerName: params.dealerName,
+        amount: Number(params.amount),
         notes: params.notes || "",
-        projectTag: params.projectTag || "",
-        category: params.category,
         paymentMode: params.paymentMode,
         date: params.date,
-        unit: params.unit,
-        quantity: Number(params.quantity),
-        ratePerUnit: Number(params.ratePerUnit),
-        diameter: params.diameter,
+        _id: params._id,
     });
 
-    const categoryColors = {
-        Cement: "#34D399", Steel: "#38BDF8", Sand: "#FBBF24", Bricks: "#F87171",
-        Aggregate: "#A78BFA", Plumbing: "#2DD4BF", Granite: "#FB923C", Marble: "#818CF8",
-        Tiles: "#F472B6", Color: "#4ADE80", Block: "#E879F9", Labor: "#22D3EE",
-        Equipment: "#FACC15", Transport: "#6366F1", Miscellaneous: "#14B8A6",
+    const modeColors = {
+        Cash: "#34D399",
+        UPI: "#38BDF8",
+        "Bank Transfer": "#A78BFA",
+        Cheque: "#FBBF24",
+        "Credit Card": "#F472B6",
     };
-    const categoriesWithoutUnits = ["Labor", "Equipment", "Plumbing"];
-    const catColor = categoryColors[expenseData.category] || "#5B8A72";
-    const isNoUnitCat = categoriesWithoutUnits.includes(expenseData.category);
 
+    const catColor = modeColors[incomeData.paymentMode] || "#5B8A72";
+
+    const [isEditModalVisible, setIsEditModalVisible] = useState(false);
     const [editForm, setEditForm] = useState({
-        ...expenseData,
-        totalAmount: convertToDisplay(expenseData.totalAmount).toString()
+        dealerName: incomeData.dealerName,
+        amount: convertToDisplay(incomeData.amount).toString(),
+        notes: incomeData.notes
     });
 
     useEffect(() => {
@@ -80,7 +77,7 @@ export default function ExpenseDetail() {
 
     const onShare = async () => {
         try {
-            const message = `Expense Receipt\n\nVendor: ${expenseData.vendorName}\nCategory: ${expenseData.category}\nAmount: ${formatAmount(expenseData.totalAmount)}\nDate: ${expenseData.date}\n\nGenerated via Finova`;
+            const message = `Income Receipt\n\nDealer/Person: ${incomeData.dealerName}\nAmount: ${formatAmount(incomeData.amount)}\nPayment Mode: ${incomeData.paymentMode}\nDate: ${incomeData.date}\n\nGenerated via Finova`;
             await Share.share({ message });
         } catch (error) {
             console.log(error.message);
@@ -88,31 +85,38 @@ export default function ExpenseDetail() {
     };
 
     const handleUpdate = async () => {
+        if (!editForm.dealerName.trim()) {
+            Alert.alert("Error", "Please enter a name");
+            return;
+        }
+        if (!editForm.amount || Number(editForm.amount) <= 0) {
+            Alert.alert("Error", "Please enter a valid amount");
+            return;
+        }
+
         try {
             const res = await axios.patch(
-                `${BASE_URL}/expenses/${params._id}`,
+                `${BASE_URL}/incomes/${incomeData._id}`,
                 {
-                    vendorName: editForm.vendorName,
-                    totalAmount: convertToBase(editForm.totalAmount),
+                    dealerName: editForm.dealerName.trim(),
+                    amount: convertToBase(editForm.amount),
                     notes: editForm.notes,
-                    projectTag: editForm.projectTag,
                 },
                 { headers: { Authorization: `Bearer ${userToken}` } }
             );
 
-            setExpenseData({
-                ...expenseData,
-                vendorName: res.data.vendorName,
-                totalAmount: res.data.totalAmount,
+            setIncomeData({
+                ...incomeData,
+                dealerName: res.data.dealerName,
+                amount: res.data.amount,
                 notes: res.data.notes,
-                projectTag: res.data.projectTag,
             });
 
             setIsEditModalVisible(false);
-            Alert.alert("Success", "Expense updated successfully");
+            Alert.alert("Success", "Income updated successfully");
         } catch (error) {
             console.log("Update error:", error.message);
-            Alert.alert("Error", "Failed to update expense");
+            Alert.alert("Error", "Failed to update income");
         }
     };
 
@@ -127,7 +131,7 @@ export default function ExpenseDetail() {
         });
     };
 
-    const DetailItem = ({ icon, label, value, color = "#fff", isLarge = false }) => (
+    const DetailItem = ({ icon, label, value, color = "#fff" }) => (
         <View style={styles.detailItem}>
             <View style={[styles.iconContainer, { backgroundColor: `${color}16` }]}>
                 <Ionicons name={icon} size={20} color={color} />
@@ -136,7 +140,7 @@ export default function ExpenseDetail() {
                 <View style={styles.labelRow}>
                     <Text style={[styles.detailLabel, { color: themeColors.subtext }]}>{label}</Text>
                 </View>
-                <Text style={[styles.detailValue, isLarge && styles.largeValue, { color: themeColors.text }]}>
+                <Text style={[styles.detailValue, { color: themeColors.text }]}>
                     {value}
                 </Text>
             </View>
@@ -167,18 +171,18 @@ export default function ExpenseDetail() {
                         style={[styles.heroCard, { borderColor: themeColors.border }]}
                     >
                         <View style={[styles.categoryBadge, { backgroundColor: `${catColor}18` }]}>
-                            <Text style={[styles.categoryBadgeText, { color: catColor }]}>{expenseData.category}</Text>
+                            <Text style={[styles.categoryBadgeText, { color: catColor }]}>Income</Text>
                         </View>
 
-                        <Text style={[styles.vendorName, { color: themeColors.text }]}>{expenseData.vendorName}</Text>
+                        <Text style={[styles.vendorName, { color: themeColors.text }]}>{incomeData.dealerName}</Text>
                         <View style={styles.amountContainer}>
-                            <Text style={[styles.amountText, { color: "#5B8A72" }]}>{formatAmount(expenseData.totalAmount)}</Text>
+                            <Text style={[styles.amountText, { color: "#5B8A72" }]}>{formatAmount(incomeData.amount)}</Text>
                         </View>
 
                         <View style={styles.statusRow}>
                             <View style={[styles.paymentHighlight, { backgroundColor: `${catColor}10`, borderColor: `${catColor}30` }]}>
                                 <Ionicons name="card-outline" size={14} color={catColor} />
-                                <Text style={[styles.paymentMethod, { color: catColor }]}>{expenseData.paymentMode}</Text>
+                                <Text style={[styles.paymentMethod, { color: catColor }]}>{incomeData.paymentMode}</Text>
                             </View>
                         </View>
                     </LinearGradient>
@@ -190,85 +194,43 @@ export default function ExpenseDetail() {
                         <View style={styles.statsGrid}>
                             <DetailItem
                                 icon="calendar-outline"
-                                label="Transaction Date"
-                                value={formatDate(expenseData.date)}
+                                label="Received Date"
+                                value={formatDate(incomeData.date)}
                                 color="#5B8A72"
                             />
 
-                            {expenseData.unit !== "None" && (
-                                <DetailItem
-                                    icon="cube-outline"
-                                    label="Quantity/Unit"
-                                    value={`${expenseData.quantity} ${expenseData.unit}`}
-                                    color="#5B8A72"
-                                />
-                            )}
+                            <DetailItem
+                                icon="wallet-outline"
+                                label="Payment Mode"
+                                value={incomeData.paymentMode}
+                                color="#5B8A72"
+                            />
 
-                            {expenseData.diameter && (
-                                <DetailItem
-                                    icon="resize-outline"
-                                    label="Size/Diameter"
-                                    value={expenseData.diameter}
-                                    color="#5B8A72"
-                                />
-                            )}
-
-                            {!isNoUnitCat && (
-                                <DetailItem
-                                    icon="pricetag-outline"
-                                    label={t('rate_per_unit')}
-                                    value={formatAmount(expenseData.ratePerUnit)}
-                                    color="#5B8A72"
-                                />
-                            )}
-
-                            {expenseData.projectTag && (
-                                <DetailItem
-                                    icon="business-outline"
-                                    label="Project/Site"
-                                    value={expenseData.projectTag}
-                                    color="#5B8A72"
-                                />
-                            )}
+                            <DetailItem
+                                icon="person-outline"
+                                label="Source/Dealer"
+                                value={incomeData.dealerName}
+                                color="#5B8A72"
+                            />
                         </View>
 
-                        {/* Price Calculations */}
+                        {/* Net Amount Box */}
                         <View style={[styles.calculationBox, { borderTopColor: themeColors.border }]}>
-                            {!isNoUnitCat && expenseData.quantity > 0 && (
-                                <>
-                                    <View style={styles.calcRow}>
-                                        <Text style={[styles.calcLabel, { color: themeColors.subtext }]}>Base Price</Text>
-                                        <Text style={[styles.calcValue, { color: themeColors.text }]}>{formatAmount(expenseData.ratePerUnit * expenseData.quantity)}</Text>
-                                    </View>
-                                    <View style={styles.calcRow}>
-                                        <Text style={[styles.calcLabel, { color: themeColors.subtext }]}>Tax (Inc. GST)</Text>
-                                        <Text style={[styles.calcValue, { color: themeColors.text }]}>{formatAmount(Math.max(0, expenseData.totalAmount - (expenseData.ratePerUnit * expenseData.quantity)))}</Text>
-                                    </View>
-                                </>
-                            )}
-
-                            {isNoUnitCat && (
-                                <View style={styles.calcRow}>
-                                    <Text style={[styles.calcLabel, { color: themeColors.subtext }]}>Unit Price</Text>
-                                    <Text style={[styles.calcValue, { color: themeColors.text }]}>{formatAmount(expenseData.ratePerUnit)}</Text>
-                                </View>
-                            )}
-
                             <View style={[styles.calcRow, styles.totalRow, { borderTopColor: themeColors.border }]}>
-                                <Text style={[styles.totalLabelText, { color: themeColors.text }]}>Net Amount</Text>
-                                <Text style={[styles.totalValueText, { color: "#5B8A72" }]}>{formatAmount(expenseData.totalAmount)}</Text>
+                                <Text style={[styles.totalLabelText, { color: themeColors.text }]}>Total Received</Text>
+                                <Text style={[styles.totalValueText, { color: "#5B8A72" }]}>{formatAmount(incomeData.amount)}</Text>
                             </View>
                         </View>
                     </View>
 
                     {/* Notes Section */}
-                    {expenseData.notes && (
+                    {incomeData.notes && (
                         <View style={[styles.notesCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
                             <View style={styles.notesHeader}>
                                 <Ionicons name="document-text-outline" size={20} color="#5B8A72" />
                                 <Text style={[styles.notesTitle, { color: themeColors.text }]}>{t('notes')}</Text>
                             </View>
-                            <Text style={[styles.notesBody, { color: themeColors.subtext }]}>{expenseData.notes}</Text>
+                            <Text style={[styles.notesBody, { color: themeColors.subtext }]}>{incomeData.notes}</Text>
                         </View>
                     )}
 
@@ -278,8 +240,9 @@ export default function ExpenseDetail() {
                             style={[styles.editButton, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
                             onPress={() => {
                                 setEditForm({
-                                    ...expenseData,
-                                    totalAmount: convertToDisplay(expenseData.totalAmount).toString()
+                                    dealerName: incomeData.dealerName,
+                                    amount: convertToDisplay(incomeData.amount).toString(),
+                                    notes: incomeData.notes
                                 });
                                 setIsEditModalVisible(true);
                             }}
@@ -290,48 +253,44 @@ export default function ExpenseDetail() {
 
                         <TouchableOpacity style={[styles.downloadButton, { backgroundColor: themeColors.primary }]} onPress={onShare}>
                             <Ionicons name="cloud-download-outline" size={20} color={themeColors.tabBar} />
-                            <Text style={[styles.buttonText, { color: themeColors.tabBar }]}>Export Receipt</Text>
+                            <Text style={[styles.buttonText, { color: themeColors.tabBar }]}>Export</Text>
                         </TouchableOpacity>
                     </View>
 
                     {/* Footer - Verification Stamp */}
                     <View style={styles.verificationStamp}>
                         <MaterialCommunityIcons name="shield-check" size={18} color="#5B8A7266" />
-                        <Text style={styles.verificationText}>Digitally Verified Transaction • {params._id?.substring(0, 8)}</Text>
+                        <Text style={styles.verificationText}>Digitally Verified Income • {incomeData._id?.substring(0, 8)}</Text>
                     </View>
                 </ScrollView>
 
                 {/* Edit Modal */}
-                <Modal visible={isEditModalVisible} animationType="slide" transparent>
+                <Modal
+                    visible={isEditModalVisible}
+                    animationType="slide"
+                    transparent
+                    onRequestClose={() => setIsEditModalVisible(false)}
+                >
                     <View style={styles.modalOverlay}>
                         <LinearGradient colors={themeColors.background} style={[styles.modalForm, { backgroundColor: themeColors.card }]}>
-                            <Text style={[styles.modalTitle, { color: themeColors.text }]}>{t('add_expense_title') || "Edit Expense"}</Text>
+                            <Text style={[styles.modalTitle, { color: themeColors.text }]}>Edit Income</Text>
 
-                            <Text style={[styles.modalLabel, { color: themeColors.subtext }]}>{t('vendor_name')}</Text>
+                            <Text style={[styles.modalLabel, { color: themeColors.subtext }]}>Dealer / Source Name</Text>
                             <TextInput
                                 style={[styles.modalInput, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
-                                value={editForm.vendorName}
-                                onChangeText={(t) => setEditForm({ ...editForm, vendorName: t })}
-                                placeholder="Vendor Name"
+                                value={editForm.dealerName}
+                                onChangeText={(t) => setEditForm({ ...editForm, dealerName: t })}
+                                placeholder="Name"
                                 placeholderTextColor={themeColors.subtext}
                             />
 
-                            <Text style={[styles.modalLabel, { color: themeColors.subtext }]}>{t('total_amount_label')} ({currencySymbol})</Text>
+                            <Text style={[styles.modalLabel, { color: themeColors.subtext }]}>Amount ({currencySymbol})</Text>
                             <TextInput
                                 style={[styles.modalInput, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
-                                value={editForm.totalAmount.toString()}
-                                onChangeText={(t) => setEditForm({ ...editForm, totalAmount: t })}
+                                value={editForm.amount}
+                                onChangeText={(t) => setEditForm({ ...editForm, amount: t })}
                                 keyboardType="numeric"
                                 placeholder="Amount"
-                                placeholderTextColor={themeColors.subtext}
-                            />
-
-                            <Text style={[styles.modalLabel, { color: themeColors.subtext }]}>{t('project_tag')}</Text>
-                            <TextInput
-                                style={[styles.modalInput, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
-                                value={editForm.projectTag}
-                                onChangeText={(t) => setEditForm({ ...editForm, projectTag: t })}
-                                placeholder="Project Tag"
                                 placeholderTextColor={themeColors.subtext}
                             />
 
@@ -341,7 +300,7 @@ export default function ExpenseDetail() {
                                 value={editForm.notes}
                                 onChangeText={(t) => setEditForm({ ...editForm, notes: t })}
                                 multiline
-                                placeholder="Notes"
+                                placeholder="Optional Notes"
                                 placeholderTextColor={themeColors.subtext}
                             />
 
@@ -376,26 +335,20 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: 20,
-        paddingTop: Platform.OS === "android" ? 40 : 10,
+        paddingTop: 40,
         paddingBottom: 15,
     },
     headerTitle: {
         fontSize: 20,
-        fontWeight: "800",
+        fontWeight: "bold",
     },
     backButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        justifyContent: "center",
-        alignItems: "center",
+        padding: 8,
+        borderRadius: 12,
     },
     shareButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        justifyContent: "center",
-        alignItems: "center",
+        padding: 10,
+        borderRadius: 12,
     },
     scrollContent: {
         padding: 20,
@@ -407,11 +360,6 @@ const styles = StyleSheet.create({
         alignItems: "center",
         marginBottom: 24,
         borderWidth: 1,
-        elevation: 4,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
     },
     categoryBadge: {
         paddingHorizontal: 16,
@@ -420,16 +368,15 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     categoryBadgeText: {
-        fontWeight: "800",
+        fontWeight: "700",
         textTransform: "uppercase",
         fontSize: 12,
-        letterSpacing: 1.5,
+        letterSpacing: 1,
     },
     vendorName: {
         fontSize: 28,
         fontWeight: "800",
         textAlign: "center",
-        letterSpacing: -0.5,
     },
     amountContainer: {
         flexDirection: "row",
@@ -456,35 +403,29 @@ const styles = StyleSheet.create({
     paymentHighlight: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 14,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 12,
         borderWidth: 1,
-        gap: 8,
+        gap: 6,
     },
     paymentMethod: {
         fontSize: 14,
-        fontWeight: "700",
+        fontWeight: "600",
     },
     statsCard: {
         borderRadius: 28,
         padding: 24,
         marginBottom: 24,
         borderWidth: 1,
-        elevation: 2,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
     },
     sectionTitle: {
         fontSize: 17,
-        fontWeight: "800",
+        fontWeight: "700",
         marginBottom: 20,
-        letterSpacing: 0.5,
     },
     statsGrid: {
-        gap: 20,
+        gap: 18,
     },
     detailItem: {
         flexDirection: "row",
@@ -498,7 +439,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     detailTextContainer: {
-        marginLeft: 15,
+        marginLeft: 12,
         flex: 1,
         justifyContent: "center",
     },
@@ -509,14 +450,14 @@ const styles = StyleSheet.create({
     },
     detailLabel: {
         fontSize: 11,
-        fontWeight: "800",
+        fontWeight: "600",
         textTransform: "uppercase",
         letterSpacing: 1,
         opacity: 0.7,
     },
     detailValue: {
         fontSize: 16,
-        fontWeight: "700",
+        fontWeight: "600",
     },
     calculationBox: {
         marginTop: 25,
@@ -526,58 +467,49 @@ const styles = StyleSheet.create({
     calcRow: {
         flexDirection: "row",
         justifyContent: "space-between",
-        marginBottom: 12,
-    },
-    calcLabel: {
-        fontSize: 14,
-        fontWeight: "600",
-        opacity: 0.6,
-    },
-    calcValue: {
-        fontSize: 15,
-        fontWeight: "700",
+        marginBottom: 10,
     },
     totalRow: {
         marginTop: 15,
         paddingTop: 15,
         borderTopWidth: 1,
+        borderTopColor: "rgba(255,255,255,0.05)",
     },
     totalLabelText: {
         fontSize: 16,
-        fontWeight: "800",
+        fontWeight: "700",
     },
     totalValueText: {
-        fontSize: 22,
+        fontSize: 20,
         fontWeight: "800",
     },
     notesCard: {
         borderRadius: 24,
-        padding: 24,
-        marginBottom: 32,
+        padding: 20,
+        marginBottom: 30,
         borderWidth: 1,
     },
     notesHeader: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 12,
+        marginBottom: 10,
     },
     notesTitle: {
         fontSize: 15,
-        fontWeight: "700",
+        fontWeight: "600",
         marginLeft: 10,
     },
     notesBody: {
         fontSize: 14,
         lineHeight: 22,
-        fontWeight: "500",
     },
     actionSection: {
         flexDirection: "row",
-        gap: 16,
+        gap: 15,
     },
     editButton: {
         flex: 1,
-        height: 60,
+        height: 56,
         borderRadius: 18,
         flexDirection: "row",
         alignItems: "center",
@@ -587,67 +519,57 @@ const styles = StyleSheet.create({
     },
     downloadButton: {
         flex: 1,
-        height: 60,
+        height: 56,
         borderRadius: 18,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
         gap: 10,
-        elevation: 4,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 10,
     },
     buttonText: {
         fontSize: 16,
-        fontWeight: "800",
+        fontWeight: "700",
     },
     verificationStamp: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        marginTop: 32,
-        opacity: 0.5,
+        marginTop: 30,
+        opacity: 0.6,
     },
     verificationText: {
         fontSize: 11,
-        fontWeight: "600",
-        marginLeft: 8,
+        color: "rgba(255,255,255,0.4)",
+        marginLeft: 6,
         letterSpacing: 0.5,
     },
-    // Modal Styles
     modalOverlay: {
         flex: 1,
-        backgroundColor: "rgba(15,32,39,0.8)",
+        backgroundColor: "rgba(0,0,0,0.7)",
         justifyContent: "flex-end",
     },
     modalForm: {
-        borderTopLeftRadius: 36,
-        borderTopRightRadius: 36,
-        padding: 28,
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        padding: 24,
         paddingBottom: 50,
-        elevation: 20,
     },
     modalTitle: {
-        fontSize: 24,
-        fontWeight: "800",
-        marginBottom: 24,
+        fontSize: 22,
+        fontWeight: "700",
+        marginBottom: 20,
     },
     modalLabel: {
         fontSize: 12,
-        fontWeight: "800",
-        marginBottom: 10,
+        fontWeight: "600",
+        marginBottom: 8,
         textTransform: "uppercase",
-        letterSpacing: 1,
-        opacity: 0.7,
     },
     modalInput: {
-        borderRadius: 18,
+        borderRadius: 16,
         padding: 16,
         fontSize: 16,
-        marginBottom: 24,
-        fontWeight: "600",
+        marginBottom: 20,
     },
     modalActions: {
         flexDirection: "row",
@@ -655,25 +577,24 @@ const styles = StyleSheet.create({
     },
     cancelBtn: {
         flex: 1,
-        height: 58,
+        height: 56,
         borderRadius: 16,
         alignItems: "center",
         justifyContent: "center",
     },
     cancelBtnText: {
         fontSize: 16,
-        fontWeight: "700",
+        fontWeight: "600",
     },
     saveBtn: {
         flex: 2,
-        height: 58,
+        height: 56,
         borderRadius: 16,
         alignItems: "center",
         justifyContent: "center",
-        elevation: 4,
     },
     saveBtnText: {
         fontSize: 16,
-        fontWeight: "800",
+        fontWeight: "700",
     },
 });

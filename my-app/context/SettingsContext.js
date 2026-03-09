@@ -387,7 +387,7 @@ export const SettingsProvider = ({ children }) => {
         language: "English",
         dateFormat: "DD/MM/YYYY",
         defaultPaymentMode: "Cash",
-        theme: "dark"
+        theme: "light"
     });
 
     const [loading, setLoading] = useState(true);
@@ -400,7 +400,9 @@ export const SettingsProvider = ({ children }) => {
         try {
             const saved = await AsyncStorage.getItem("app_preferences");
             if (saved) {
-                setSettings(JSON.parse(saved));
+                const parsed = JSON.parse(saved);
+                parsed.theme = "light"; // Force light mode
+                setSettings(parsed);
             }
         } catch (e) {
             console.log("Error loading settings:", e);
@@ -423,20 +425,72 @@ export const SettingsProvider = ({ children }) => {
     };
 
     const currencySymbol = settings.currency === "INR" ? "₹" : "$";
+    const exchangeRate = 92.59; // 1 USD = 92.59 INR
+
+    const convertToDisplay = (amount) => {
+        if (!amount) return 0;
+        if (settings.currency === "INR") return amount;
+        return amount / exchangeRate;
+    };
+
+    const formatAmount = (num, showSymbol = true) => {
+        if (num === undefined || num === null) return showSymbol ? `${currencySymbol}0` : "0";
+
+        const abs = Math.abs(num);
+        let displayVal = abs;
+
+        if (settings.currency === "USD") {
+            displayVal = abs / exchangeRate;
+            const formatted = displayVal.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            return `${num < 0 ? "-" : ""}${showSymbol ? "$" : ""}${formatted}`;
+        } else {
+            // INR Formatting (Lakhs/Crores)
+            let formatted;
+            if (abs >= 10000000) formatted = `${(abs / 10000000).toFixed(2)} Cr`;
+            else if (abs >= 100000) formatted = `${(abs / 100000).toFixed(2)} L`;
+            else formatted = abs.toLocaleString("en-IN");
+            return `${num < 0 ? "-" : ""}${showSymbol ? "₹" : ""}${formatted}`;
+        }
+    };
+
+    const convertToBase = (amount) => {
+        if (!amount) return 0;
+        const val = typeof amount === 'string' ? parseFloat(amount) : amount;
+        if (settings.currency === "INR") return val;
+        return val * exchangeRate;
+    };
 
     const themeColors = {
-        background: settings.theme === "light" ? ["#F8FAFC", "#F1F5F9", "#E2E8F0"] : ["#0F2027", "#203A43", "#2C5364"],
+        background: settings.theme === "light" ? ["#F5F3EE", "#F0EDE7", "#EBE8E2"] : ["#0F2027", "#203A43", "#2C5364"],
         card: settings.theme === "light" ? "#FFFFFF" : "#1A2B32",
-        text: settings.theme === "light" ? "#0F172A" : "#FFFFFF",
-        subtext: settings.theme === "light" ? "#64748B" : "rgba(255,255,255,0.5)",
-        border: settings.theme === "light" ? "rgba(15, 23, 42, 0.08)" : "rgba(255,255,255,0.05)",
+        text: settings.theme === "light" ? "#1A1A1A" : "#FFFFFF",
+        subtext: settings.theme === "light" ? "#7A7A6E" : "rgba(255,255,255,0.5)",
+        border: settings.theme === "light" ? "rgba(0, 0, 0, 0.06)" : "rgba(255,255,255,0.05)",
         tabBar: settings.theme === "light" ? "#FFFFFF" : "#0F2027",
-        primary: "#4ADE80",
+        primary: "#5B8A72",
+        accent: "#D4A853",
+        teal: "#5B8A72",
+        tealLight: "rgba(91, 138, 114, 0.08)",
+        tealBg: "#5B8A72",
         danger: "#EF4444",
     };
 
     return (
-        <SettingsContext.Provider value={{ settings, applySettings, loading, t, themeColors, currencySymbol }}>
+        <SettingsContext.Provider value={{
+            settings,
+            applySettings,
+            loading,
+            t,
+            themeColors,
+            currencySymbol,
+            formatAmount,
+            convertToDisplay,
+            convertToBase,
+            exchangeRate
+        }}>
             {children}
         </SettingsContext.Provider>
     );
