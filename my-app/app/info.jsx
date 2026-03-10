@@ -11,7 +11,8 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
-    SafeAreaView
+    SafeAreaView,
+    StatusBar,
 } from "react-native";
 import { AuthContext } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
@@ -21,31 +22,42 @@ import { useRouter } from "expo-router";
 import { BASE_URL } from "../config";
 import { Ionicons } from "@expo/vector-icons";
 
-const ProfileField = ({ icon, label, value, field, keyboardType = "default", multiline = false, isEditing, form, setForm, themeColors }) => (
-    <View style={[styles.fieldCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-        <View style={styles.fieldHeader}>
-            <Ionicons name={icon} size={18} color={themeColors.primary} style={{ marginRight: 8 }} />
-            <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{label}</Text>
+const SectionHeader = ({ title, icon, iconColor, themeColors }) => (
+    <View style={[styles.sectionHeader, { borderColor: themeColors.border }]}>
+        <View style={[styles.sectionIconWrap, { backgroundColor: `${iconColor}18` }]}>
+            <Ionicons name={icon} size={18} color={iconColor} />
         </View>
-        {isEditing ? (
-            <TextInput
-                style={[styles.input, { color: themeColors.text, borderBottomColor: themeColors.border }, multiline && { height: 80, textAlignVertical: "top" }]}
-                value={value}
-                onChangeText={(text) => setForm({ ...form, [field]: text })}
-                keyboardType={keyboardType}
-                multiline={multiline}
-                placeholder={`Enter ${label}`}
-                placeholderTextColor={themeColors.subtext}
-            />
-        ) : (
-            <Text style={[styles.fieldValue, { color: themeColors.text }]}>{value || `Not specified`}</Text>
-        )}
+        <Text style={[styles.sectionTitle, { color: themeColors.subtext }]}>{title}</Text>
+    </View>
+);
+
+const ProfileField = ({ icon, label, value, field, keyboardType = "default", multiline = false, isEditing, form, setForm, themeColors, noBorder }) => (
+    <View style={[styles.row, { borderBottomColor: themeColors.border }, noBorder && { borderBottomWidth: 0 }]}>
+        <View style={{ flex: 1 }}>
+            <View style={styles.fieldHeader}>
+                <Ionicons name={icon} size={16} color={themeColors.subtext} style={{ marginRight: 8 }} />
+                <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{label}</Text>
+            </View>
+            {isEditing ? (
+                <TextInput
+                    style={[styles.input, { color: themeColors.text, backgroundColor: themeColors.border + '40', borderRadius: 12, paddingHorizontal: 12, marginTop: 8 }, multiline && { height: 80, textAlignVertical: "top", paddingTop: 10 }]}
+                    value={String(value)}
+                    onChangeText={(text) => setForm({ ...form, [field]: text })}
+                    keyboardType={keyboardType}
+                    multiline={multiline}
+                    placeholder={`Enter ${label}`}
+                    placeholderTextColor={themeColors.subtext}
+                />
+            ) : (
+                <Text style={[styles.fieldValue, { color: themeColors.text }]}>{value || `Not specified`}</Text>
+            )}
+        </View>
     </View>
 );
 
 export default function Info() {
     const { userToken } = useContext(AuthContext);
-    const { t, themeColors } = useSettings();
+    const { t, themeColors, settings } = useSettings();
     const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -149,11 +161,17 @@ export default function Info() {
         <LinearGradient colors={themeColors.background} style={styles.container}>
             <SafeAreaView style={{ flex: 1 }}>
                 <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-                    <View style={styles.header}>
-                        <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: themeColors.border }]}>
-                            <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+                    <View style={[styles.header, { borderBottomColor: themeColors.border }]}>
+                        <TouchableOpacity
+                            onPress={() => router.back()}
+                            style={[styles.backBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+                        >
+                            <Ionicons name="chevron-back" size={24} color={themeColors.text} />
                         </TouchableOpacity>
-                        <Text style={[styles.headerTitle, { color: themeColors.text }]}>{t('builder_details')}</Text>
+                        <View style={{ flex: 1, marginLeft: 16 }}>
+                            <Text style={[styles.headerTitle, { color: themeColors.text }]}>{t('builder_details')}</Text>
+                            <Text style={[styles.headerSub, { color: themeColors.subtext }]}>Manage your business profile</Text>
+                        </View>
                         <TouchableOpacity
                             onPress={isEditing ? handleUpdate : () => setIsEditing(true)}
                             style={[styles.editHeaderBtn, { backgroundColor: themeColors.primary }]}
@@ -169,54 +187,56 @@ export default function Info() {
 
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-                        <View style={styles.section}>
-                            <Text style={[styles.sectionTitle, { color: themeColors.primary }]}>Business Details</Text>
+                        <SectionHeader title="BUSINESS DETAILS" icon="business-outline" iconColor="#4ADE80" themeColors={themeColors} />
+                        <View style={[styles.card, { backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2B32", borderColor: themeColors.border }]}>
                             <ProfileField themeColors={themeColors} icon="person-outline" label="Builder Full Name" value={form.name} field="name" isEditing={isEditing} form={form} setForm={setForm} />
                             <ProfileField themeColors={themeColors} icon="business-outline" label="Firm/Company Name" value={form.firmName} field="firmName" isEditing={isEditing} form={form} setForm={setForm} />
 
-                            <View style={[styles.fieldCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-                                <View style={styles.fieldHeader}>
-                                    <Ionicons name="briefcase-outline" size={18} color={themeColors.primary} style={{ marginRight: 8 }} />
-                                    <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>Business Type</Text>
-                                </View>
-                                {isEditing ? (
-                                    <View style={styles.typeGrid}>
-                                        {businessTypes.map(type => (
-                                            <TouchableOpacity
-                                                key={type}
-                                                onPress={() => setForm({ ...form, businessType: type })}
-                                                style={[styles.typeChip, { backgroundColor: themeColors.border }, form.businessType === type && { backgroundColor: themeColors.primary }]}
-                                            >
-                                                <Text style={[styles.typeChipText, { color: themeColors.subtext }, form.businessType === type && { color: themeColors.tabBar, fontWeight: "700" }]}>{type}</Text>
-                                            </TouchableOpacity>
-                                        ))}
+                            <View style={styles.row}>
+                                <View style={{ flex: 1 }}>
+                                    <View style={styles.fieldHeader}>
+                                        <Ionicons name="briefcase-outline" size={16} color={themeColors.subtext} style={{ marginRight: 8 }} />
+                                        <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>Business Type</Text>
                                     </View>
-                                ) : (
-                                    <Text style={[styles.fieldValue, { color: themeColors.text }]}>{form.businessType}</Text>
-                                )}
+                                    {isEditing ? (
+                                        <View style={styles.typeGrid}>
+                                            {businessTypes.map(type => (
+                                                <TouchableOpacity
+                                                    key={type}
+                                                    onPress={() => setForm({ ...form, businessType: type })}
+                                                    style={[styles.typeChip, { backgroundColor: themeColors.border }, form.businessType === type && { backgroundColor: themeColors.primary }]}
+                                                >
+                                                    <Text style={[styles.typeChipText, { color: themeColors.subtext }, form.businessType === type && { color: themeColors.tabBar, fontWeight: "700" }]}>{type}</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    ) : (
+                                        <Text style={[styles.fieldValue, { color: themeColors.text }]}>{form.businessType}</Text>
+                                    )}
+                                </View>
                             </View>
 
-                            <ProfileField themeColors={themeColors} icon="calendar-outline" label="Years in Business" value={form.yearsInBusiness} field="yearsInBusiness" keyboardType="numeric" isEditing={isEditing} form={form} setForm={setForm} />
+                            <ProfileField themeColors={themeColors} icon="calendar-outline" label="Years in Business" value={form.yearsInBusiness} field="yearsInBusiness" keyboardType="numeric" isEditing={isEditing} form={form} setForm={setForm} noBorder />
                         </View>
 
-                        <View style={styles.section}>
-                            <Text style={[styles.sectionTitle, { color: themeColors.primary }]}>Verification</Text>
+                        <SectionHeader title="VERIFICATION" icon="document-text-outline" iconColor="#FACC15" themeColors={themeColors} />
+                        <View style={[styles.card, { backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2B32", borderColor: themeColors.border }]}>
                             <ProfileField themeColors={themeColors} icon="document-text-outline" label="GST Number" value={form.gstNumber} field="gstNumber" isEditing={isEditing} form={form} setForm={setForm} />
-                            <ProfileField themeColors={themeColors} icon="card-outline" label="PAN Number" value={form.panNumber} field="panNumber" isEditing={isEditing} form={form} setForm={setForm} />
+                            <ProfileField themeColors={themeColors} icon="card-outline" label="PAN Number" value={form.panNumber} field="panNumber" isEditing={isEditing} form={form} setForm={setForm} noBorder />
                         </View>
 
-                        <View style={styles.section}>
-                            <Text style={[styles.sectionTitle, { color: themeColors.primary }]}>Location & Sites</Text>
+                        <SectionHeader title="LOCATION & SITES" icon="location-outline" iconColor="#38BDF8" themeColors={themeColors} />
+                        <View style={[styles.card, { backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2B32", borderColor: themeColors.border }]}>
                             <ProfileField themeColors={themeColors} icon="location-outline" label="Registered Address" value={form.registeredAddress} field="registeredAddress" multiline isEditing={isEditing} form={form} setForm={setForm} />
                             <ProfileField themeColors={themeColors} icon="map-outline" label="Pincode" value={form.pincode} field="pincode" keyboardType="numeric" isEditing={isEditing} form={form} setForm={setForm} />
-                            <ProfileField themeColors={themeColors} icon="construct-outline" label="Active Site Location" value={form.siteLocation} field="siteLocation" isEditing={isEditing} form={form} setForm={setForm} />
+                            <ProfileField themeColors={themeColors} icon="construct-outline" label="Active Site Location" value={form.siteLocation} field="siteLocation" isEditing={isEditing} form={form} setForm={setForm} noBorder />
                         </View>
 
-                        <View style={styles.section}>
-                            <Text style={[styles.sectionTitle, { color: themeColors.primary }]}>Contact Info</Text>
+                        <SectionHeader title="CONTACT INFO" icon="call-outline" iconColor="#A78BFA" themeColors={themeColors} />
+                        <View style={[styles.card, { backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2B32", borderColor: themeColors.border }]}>
                             <ProfileField themeColors={themeColors} icon="call-outline" label="Primary Phone" value={form.primaryPhone} field="primaryPhone" keyboardType="phone-pad" isEditing={isEditing} form={form} setForm={setForm} />
                             <ProfileField themeColors={themeColors} icon="call-outline" label="Alternate Phone" value={form.alternatePhone} field="alternatePhone" keyboardType="phone-pad" isEditing={isEditing} form={form} setForm={setForm} />
-                            <ProfileField themeColors={themeColors} icon="globe-outline" label="Website" value={form.website} field="website" keyboardType="url" isEditing={isEditing} form={form} setForm={setForm} />
+                            <ProfileField themeColors={themeColors} icon="globe-outline" label="Website" value={form.website} field="website" keyboardType="url" isEditing={isEditing} form={form} setForm={setForm} noBorder />
                         </View>
 
                         {isEditing && (
@@ -240,12 +260,12 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "space-between",
         paddingHorizontal: 20,
-        paddingTop: Platform.OS === "android" ? 40 : 10,
-        paddingBottom: 15,
+        paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 40) + 10 : 10,
+        paddingBottom: 20,
+        borderBottomWidth: 1,
     },
-    backButton: {
+    backBtn: {
         width: 44,
         height: 44,
         borderRadius: 14,
@@ -254,8 +274,13 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
     headerTitle: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: "800",
+    },
+    headerSub: {
+        fontSize: 12,
+        marginTop: 2,
+        fontWeight: "500",
     },
     editHeaderBtn: {
         paddingHorizontal: 16,
@@ -268,63 +293,84 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     scrollContent: {
-        padding: 20,
+        padding: 24,
     },
-    section: {
-        marginBottom: 32,
+    sectionHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 30,
+        marginBottom: 12,
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+    },
+    sectionIconWrap: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: 10,
     },
     sectionTitle: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: "800",
+        letterSpacing: 1,
         textTransform: "uppercase",
-        letterSpacing: 2,
-        marginBottom: 16,
-        marginLeft: 4,
     },
-    fieldCard: {
+    card: {
         borderRadius: 24,
-        padding: 20,
-        marginBottom: 16,
+        paddingHorizontal: 20,
+        paddingVertical: 8,
+        marginBottom: 24,
         borderWidth: 1,
+        elevation: 2,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+    },
+    row: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 16,
+        borderBottomWidth: 1,
     },
     fieldHeader: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 10,
+        marginBottom: 4,
     },
     fieldLabel: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: "700",
         textTransform: "uppercase",
         letterSpacing: 1,
-        opacity: 0.6,
     },
     fieldValue: {
         fontSize: 16,
         fontWeight: "600",
+        marginTop: 2,
     },
     input: {
         fontSize: 16,
-        padding: 0,
-        borderBottomWidth: 1.5,
-        paddingBottom: 6,
+        paddingVertical: 12,
         fontWeight: "600",
     },
     typeGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        gap: 10,
-        marginTop: 10,
+        gap: 8,
+        marginTop: 12,
     },
     typeChip: {
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
         borderWidth: 1,
         borderColor: "transparent",
     },
     typeChipText: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: "600",
     },
     cancelGlobalBtn: {
@@ -333,6 +379,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         borderWidth: 1,
         marginTop: 10,
+        marginBottom: 30,
     },
     cancelGlobalBtnText: {
         fontWeight: "800",

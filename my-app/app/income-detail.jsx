@@ -28,7 +28,7 @@ export default function IncomeDetail() {
     const params = useLocalSearchParams();
     const router = useRouter();
     const { userToken } = useContext(AuthContext);
-    const { t, themeColors, settings, currencySymbol, formatAmount, convertToDisplay, convertToBase } = useSettings();
+    const { t, themeColors, settings, currencySymbol, formatAmount, convertToDisplay, convertToBase, formatDate } = useSettings();
 
     // Initial state from params
     const [incomeData, setIncomeData] = useState({
@@ -120,16 +120,7 @@ export default function IncomeDetail() {
         }
     };
 
-    const formatDate = (dateString) => {
-        if (!dateString) return "";
-        const date = new Date(dateString);
-        return date.toLocaleDateString("en-IN", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-        });
-    };
+
 
     const DetailItem = ({ icon, label, value, color = "#fff" }) => (
         <View style={styles.detailItem}>

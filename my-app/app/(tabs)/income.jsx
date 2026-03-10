@@ -152,7 +152,7 @@ function DatePickerModal({ visible, onClose, onSelect, selectedDate, themeColors
 // ─── Main Screen ───
 export default function IncomeScreen() {
     const { userToken } = useContext(AuthContext);
-    const { themeColors, settings, currencySymbol, formatAmount, convertToBase } = useSettings();
+    const { themeColors, settings, currencySymbol, formatAmount, convertToBase, formatDate } = useSettings();
     const [incomes, setIncomes] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -246,11 +246,7 @@ export default function IncomeScreen() {
         }
     };
 
-    const formatDate = (d) => {
-        if (!d) return "";
-        const dt = new Date(d);
-        return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-    };
+
 
     // Filter
     const filteredIncomes = useMemo(() => {
@@ -398,7 +394,7 @@ export default function IncomeScreen() {
 
                 {/* Search Bar */}
                 <View style={[styles.searchBar, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }]}>
-                    <Ionicons name="search-outline" size={18} color={themeColors.subtext} />
+                    <Ionicons name="search-outline" size={18} color={themeColors.subtext} style={{ marginRight: 10 }} />
                     <TextInput
                         placeholder="Search by name or date..."
                         placeholderTextColor={themeColors.subtext}
@@ -458,11 +454,11 @@ export default function IncomeScreen() {
 
                 {/* FAB */}
                 <TouchableOpacity
-                    style={[styles.fab, { backgroundColor: "#5B8A72" }]}
+                    style={[styles.fab, { backgroundColor: themeColors.primary }]}
                     onPress={() => setModalVisible(true)}
                     activeOpacity={0.8}
                 >
-                    <Ionicons name="add" size={28} color="#fff" />
+                    <Ionicons name="add" size={32} color="#fff" />
                 </TouchableOpacity>
 
                 {/* Add Income Modal */}
@@ -636,16 +632,16 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         borderRadius: 14,
-        paddingHorizontal: 14,
-        marginBottom: 12,
-        height: 46,
+        paddingHorizontal: 16,
+        marginBottom: 15,
+        height: 48,
+        borderWidth: 1,
     },
 
     searchInput: {
         flex: 1,
         fontSize: 14,
-        height: 46,
-        marginLeft: 10,
+        height: 48,
     },
 
     // ── Filter ──
@@ -754,12 +750,16 @@ const styles = StyleSheet.create({
         position: "absolute",
         bottom: 30,
         right: 25,
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         justifyContent: "center",
         alignItems: "center",
-        elevation: 8,
+        elevation: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
     },
 
     // ── Modal / Form ──

@@ -260,6 +260,11 @@ export const updateUserProfile = async (req, res) => {
       user.primaryPhone = req.body.primaryPhone || user.primaryPhone;
       user.alternatePhone = req.body.alternatePhone || user.alternatePhone;
       user.website = req.body.website || user.website;
+      user.currency = req.body.currency || user.currency;
+      user.exchangeRate = req.body.exchangeRate || user.exchangeRate;
+      user.language = req.body.language || user.language;
+      user.dateFormat = req.body.dateFormat || user.dateFormat;
+      user.theme = req.body.theme || user.theme;
 
       const updatedUser = await user.save();
       res.json({
@@ -278,6 +283,11 @@ export const updateUserProfile = async (req, res) => {
         primaryPhone: updatedUser.primaryPhone,
         alternatePhone: updatedUser.alternatePhone,
         website: updatedUser.website,
+        currency: updatedUser.currency,
+        exchangeRate: updatedUser.exchangeRate,
+        language: updatedUser.language,
+        dateFormat: updatedUser.dateFormat,
+        theme: updatedUser.theme,
       });
     } else {
       res.status(404).json({ message: "User not found" });

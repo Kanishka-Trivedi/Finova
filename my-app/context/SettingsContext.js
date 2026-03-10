@@ -1,5 +1,8 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AuthContext } from "./AuthContext";
+import axios from "axios";
+import { BASE_URL } from "../config";
 
 const SettingsContext = createContext();
 
@@ -387,22 +390,47 @@ export const SettingsProvider = ({ children }) => {
         language: "English",
         dateFormat: "DD/MM/YYYY",
         defaultPaymentMode: "Cash",
-        theme: "light"
+        theme: "light",
+        exchangeRate: 92.59
     });
 
     const [loading, setLoading] = useState(true);
+    const { userToken } = useContext(AuthContext);
 
     useEffect(() => {
         loadSettings();
-    }, []);
+    }, [userToken]);
 
     const loadSettings = async () => {
         try {
+            setLoading(true);
+            let currentSettings = settings;
+
+            // 1. Try local storage first for quick load
             const saved = await AsyncStorage.getItem("app_preferences");
             if (saved) {
-                const parsed = JSON.parse(saved);
-                parsed.theme = "light"; // Force light mode
-                setSettings(parsed);
+                currentSettings = JSON.parse(saved);
+                setSettings(currentSettings);
+            }
+
+            // 2. Sync with backend if logged in
+            if (userToken) {
+                const res = await axios.get(`${BASE_URL}/api/auth/profile`, {
+                    headers: { Authorization: `Bearer ${userToken}` }
+                });
+
+                if (res.data) {
+                    const backendSettings = {
+                        ...currentSettings,
+                        currency: res.data.currency || "INR",
+                        exchangeRate: res.data.exchangeRate || 92.59,
+                        language: res.data.language || "English",
+                        dateFormat: res.data.dateFormat || "DD/MM/YYYY",
+                        theme: res.data.theme || "light",
+                    };
+                    setSettings(backendSettings);
+                    await AsyncStorage.setItem("app_preferences", JSON.stringify(backendSettings));
+                }
             }
         } catch (e) {
             console.log("Error loading settings:", e);
@@ -414,7 +442,22 @@ export const SettingsProvider = ({ children }) => {
     const applySettings = async (newSettings) => {
         setSettings(newSettings);
         try {
+            // Save locally
             await AsyncStorage.setItem("app_preferences", JSON.stringify(newSettings));
+
+            // Sync with backend if logged in
+            if (userToken) {
+                await axios.put(`${BASE_URL}/api/auth/profile`,
+                    {
+                        currency: newSettings.currency,
+                        exchangeRate: newSettings.exchangeRate || 92.59,
+                        language: newSettings.language,
+                        dateFormat: newSettings.dateFormat,
+                        theme: newSettings.theme
+                    },
+                    { headers: { Authorization: `Bearer ${userToken}` } }
+                );
+            }
         } catch (e) {
             console.log("Error saving settings:", e);
         }
@@ -424,8 +467,23 @@ export const SettingsProvider = ({ children }) => {
         return translations[settings.language]?.[key] || translations["English"][key] || key;
     };
 
+    const formatDate = (dateInput) => {
+        if (!dateInput) return "";
+        const date = new Date(dateInput);
+        if (isNaN(date.getTime())) return "";
+
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const year = date.getFullYear();
+
+        if (settings.dateFormat === "MM/DD/YYYY") {
+            return `${month}/${day}/${year}`;
+        }
+        return `${day}/${month}/${year}`;
+    };
+
     const currencySymbol = settings.currency === "INR" ? "₹" : "$";
-    const exchangeRate = 92.59; // 1 USD = 92.59 INR
+    const exchangeRate = settings.exchangeRate || 92.59;
 
     const convertToDisplay = (amount) => {
         if (!amount) return 0;
@@ -441,6 +499,7 @@ export const SettingsProvider = ({ children }) => {
 
         if (settings.currency === "USD") {
             displayVal = abs / exchangeRate;
+            // Always use 2 decimals for USD
             const formatted = displayVal.toLocaleString("en-US", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
@@ -489,7 +548,9 @@ export const SettingsProvider = ({ children }) => {
             formatAmount,
             convertToDisplay,
             convertToBase,
-            exchangeRate
+            exchangeRate,
+            formatDate,
+            refreshSettings: loadSettings
         }}>
             {children}
         </SettingsContext.Provider>

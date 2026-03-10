@@ -32,11 +32,7 @@ const getGreeting = () => {
 const getMonthName = (idx) =>
   ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][idx];
 
-const getTodayString = () => {
-  const d = new Date();
-  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-};
+
 
 const pctChange = (current, previous) => {
   if (!previous || previous === 0) return current > 0 ? 100 : 0;
@@ -285,7 +281,7 @@ const DonutChart = ({ data, size = 160, themeColors, formatAmount }) => {
 ═══════════════════════════════════════════════ */
 export default function Dashboard() {
   const { userToken } = useContext(AuthContext);
-  const { themeColors, settings, currencySymbol, formatAmount } = useSettings();
+  const { themeColors, settings, currencySymbol, formatAmount, formatDate } = useSettings();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const isDark = settings.theme !== "light";
@@ -428,11 +424,7 @@ export default function Dashboard() {
     return all.slice(0, 10);
   }, [expenses, incomes]);
 
-  const formatDate = (d) => {
-    if (!d) return "";
-    const dt = new Date(d);
-    return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
-  };
+
 
   const lastUpdatedText = useMemo(() => {
     if (!lastUpdated) return "";
@@ -589,7 +581,7 @@ export default function Dashboard() {
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                 <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.6)" />
-                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: "600" }}>{getTodayString()}</Text>
+                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: "600" }}>{formatDate(new Date())}</Text>
               </View>
             </View>
             <Text style={s.tealAmountBig}>{formatAmount(totalExpenseThisMonth)}</Text>
@@ -609,7 +601,7 @@ export default function Dashboard() {
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                 <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.6)" />
-                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: "600" }}>{getTodayString()}</Text>
+                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: "600" }}>{formatDate(new Date())}</Text>
               </View>
             </View>
             <Text style={s.tealAmountBig}>{formatAmount(totalIncomeThisMonth)}</Text>

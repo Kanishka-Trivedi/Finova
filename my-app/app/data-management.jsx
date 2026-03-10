@@ -25,6 +25,15 @@ import { Buffer } from 'buffer';
 import { Platform, StatusBar } from "react-native";
 window.Buffer = window.Buffer || Buffer;
 
+const SectionHeader = ({ title, icon, iconColor, themeColors }) => (
+    <View style={[styles.sectionHeader, { borderColor: themeColors.border }]}>
+        <View style={[styles.sectionIconWrap, { backgroundColor: `${iconColor}18` }]}>
+            <Ionicons name={icon} size={18} color={iconColor} />
+        </View>
+        <Text style={[styles.sectionTitle, { color: themeColors.subtext }]}>{title}</Text>
+    </View>
+);
+
 export default function DataManagement() {
     const { userToken } = useContext(AuthContext);
     const { t, themeColors, settings } = useSettings();
@@ -113,17 +122,32 @@ export default function DataManagement() {
                 headers: { Authorization: `Bearer ${userToken}` },
             });
 
-            const fileUri = `${FileSystemLegacy.documentDirectory}finova_backup_${new Date().getTime()}.json`;
+            const fileName = `finova_backup_${new Date().getTime()}.json`;
+            const fileUri = `${FileSystemLegacy.documentDirectory}${fileName}`;
             const jsonString = JSON.stringify(res.data, null, 2);
 
             await FileSystemLegacy.writeAsStringAsync(fileUri, jsonString);
 
-            if (await Sharing.isAvailableAsync()) {
-                await Sharing.shareAsync(fileUri);
+            if (Platform.OS === 'android') {
+                const permissions = await FileSystemLegacy.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                if (permissions.granted) {
+                    const destinationUri = await FileSystemLegacy.StorageAccessFramework.createFileAsync(
+                        permissions.directoryUri,
+                        fileName,
+                        'application/json'
+                    );
+                    await FileSystemLegacy.writeAsStringAsync(destinationUri, jsonString, { encoding: FileSystemLegacy.EncodingType.UTF8 });
+                    Alert.alert("Success", "Backup downloaded to your selected folder.");
+                } else {
+                    // Fallback to sharing if permission denied
+                    await Sharing.shareAsync(fileUri);
+                }
             } else {
-                Alert.alert("Success", "Backup saved to device.");
+                // On iOS, sharing is the way to 'Save to Files'
+                await Sharing.shareAsync(fileUri);
             }
         } catch (error) {
+            console.error("Download error:", error);
             Alert.alert(t("error"), "Local download failed.");
         } finally {
             setDownloading(false);
@@ -218,76 +242,94 @@ export default function DataManagement() {
     return (
         <LinearGradient colors={themeColors.background} style={styles.container}>
             <SafeAreaView style={{ flex: 1 }}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+                <View style={[styles.header, { borderBottomColor: themeColors.border }]}>
+                    <TouchableOpacity
+                        onPress={() => router.back()}
+                        style={[styles.backBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+                    >
                         <Ionicons name="chevron-back" size={24} color={themeColors.text} />
                     </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: themeColors.text }]}>{t("data_management")}</Text>
-                    <View style={{ width: 44 }} />
+                    <View style={{ flex: 1, marginLeft: 16 }}>
+                        <Text style={[styles.headerTitle, { color: themeColors.text }]}>{t("data_management")}</Text>
+                        <Text style={[styles.headerSub, { color: themeColors.subtext }]}>Backup and secure your data</Text>
+                    </View>
+                    <View style={{ width: 44 }}>
+                        {loading && <ActivityIndicator size="small" color={themeColors.primary} />}
+                    </View>
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-                    {/* Storage Usage Card */}
-                    <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-                        <View style={styles.cardHeader}>
-                            <MaterialCommunityIcons name="database" size={24} color={themeColors.primary} />
-                            <Text style={[styles.cardTitle, { color: themeColors.text }]}>{t("storage_usage")}</Text>
-                        </View>
-                        <View style={styles.storageInfo}>
-                            <Text style={[styles.storageText, { color: themeColors.subtext }]}>
-                                {stats?.usedKB > 1024 ? (stats.usedKB / 1024).toFixed(2) + " MB" : stats?.usedKB.toFixed(2) + " KB"} / {(stats?.limitKB / 1024).toFixed(0)} MB
-                            </Text>
-                            <Text style={[styles.storagePercent, { color: themeColors.primary }]}>
-                                {stats?.percentage < 0.001 && stats?.percentage > 0 ? stats.percentage.toFixed(4) : stats?.percentage.toFixed(3)}%
-                            </Text>
-                        </View>
-                        <View style={[styles.pBarBg, { backgroundColor: themeColors.border }]}>
-                            <View style={[styles.pBarFill, { backgroundColor: themeColors.primary, width: `${stats?.percentage}%` }]} />
+                    <SectionHeader title="STORAGE STATUS" icon="database-outline" iconColor="#A78BFA" themeColors={themeColors} />
+                    <View style={[styles.card, { backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2B32", borderColor: themeColors.border }]}>
+                        <View style={styles.row}>
+                            <View style={{ flex: 1 }}>
+                                <View style={styles.storageInfo}>
+                                    <Text style={[styles.storageText, { color: themeColors.text }]}>
+                                        {stats?.usedKB > 1024 ? (stats.usedKB / 1024).toFixed(2) + " MB" : stats?.usedKB.toFixed(2) + " KB"} Used
+                                    </Text>
+                                    <Text style={[styles.storagePercent, { color: themeColors.primary }]}>
+                                        {stats?.percentage < 0.001 && stats?.percentage > 0 ? stats.percentage.toFixed(4) : stats?.percentage.toFixed(3)}%
+                                    </Text>
+                                </View>
+                                <View style={[styles.pBarBg, { backgroundColor: themeColors.border }]}>
+                                    <View style={[styles.pBarFill, { backgroundColor: themeColors.primary, width: `${stats?.percentage}%` }]} />
+                                </View>
+                                <Text style={[styles.storageSubText, { color: themeColors.subtext }]}>
+                                    Limit: {(stats?.limitKB / 1024).toFixed(0)} MB
+                                </Text>
+                            </View>
                         </View>
                     </View>
 
-                    {/* Backup Section */}
-                    <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-                        <View style={styles.cardHeader}>
-                            <Ionicons name="cloud-done-outline" size={24} color="#5B8A72" />
-                            <Text style={[styles.cardTitle, { color: themeColors.text }]}>Cloud Sync</Text>
+                    <SectionHeader title="CLOUD SYNC" icon="cloud-done-outline" iconColor="#5B8A72" themeColors={themeColors} />
+                    <View style={[styles.card, { backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2B32", borderColor: themeColors.border }]}>
+                        <View style={styles.row}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.rowLabel, { color: themeColors.text }]}>Last Backup</Text>
+                                <Text style={[styles.rowSublabel, { color: themeColors.subtext }]}>
+                                    {stats?.lastBackup ? new Date(stats.lastBackup).toLocaleString() : t("backup_none")}
+                                </Text>
+                            </View>
                         </View>
-
-                        <View style={styles.infoRow}>
-                            <Text style={[styles.infoLabel, { color: themeColors.subtext }]}>{t("last_backup")}</Text>
-                            <Text style={[styles.infoValue, { color: themeColors.text }]}>
-                                {stats?.lastBackup ? new Date(stats.lastBackup).toLocaleString() : t("backup_none")}
-                            </Text>
+                        <View style={[styles.row, { borderBottomWidth: 0 }]}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.rowLabel, { color: themeColors.text }]}>Vault Snapshots</Text>
+                                <Text style={[styles.rowSublabel, { color: themeColors.subtext }]}>
+                                    {stats?.vaultSnapshots || 0} secure snapshots stored in cloud
+                                </Text>
+                            </View>
                         </View>
 
                         <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: syncing ? themeColors.border : themeColors.primary }]}
+                            style={[styles.primaryActionBtn, { backgroundColor: syncing ? themeColors.border : themeColors.primary }]}
                             onPress={handleBackup}
                             disabled={syncing}
                         >
                             {syncing ? <ActivityIndicator color={themeColors.tabBar} /> : (
                                 <>
-                                    <Ionicons name="sync" size={20} color={themeColors.tabBar} />
+                                    <Ionicons name="cloud-upload" size={20} color={themeColors.tabBar} style={{ marginRight: 8 }} />
                                     <Text style={[styles.actionBtnText, { color: themeColors.tabBar }]}>{t("backup_now")}</Text>
                                 </>
                             )}
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.actionBtn, { backgroundColor: themeColors.border, marginTop: 12, borderColor: themeColors.primary, borderWidth: 1 }]}
+                            style={[styles.secondaryActionBtn, { borderColor: themeColors.primary + '80' }]}
                             onPress={handleLocalDownload}
                             disabled={downloading}
                         >
-                            {downloading ? <ActivityIndicator color={themeColors.primary} /> : (
+                            {downloading ? (
+                                <ActivityIndicator color={themeColors.primary} />
+                            ) : (
                                 <>
-                                    <Ionicons name="download-outline" size={20} color={themeColors.primary} />
-                                    <Text style={[styles.actionBtnText, { color: themeColors.primary }]}>Download JSON Backup</Text>
+                                    <Ionicons name="download-outline" size={20} color={themeColors.primary} style={{ marginRight: 8 }} />
+                                    <Text style={[styles.actionBtnText, { color: themeColors.primary }]}>Download Local JSON</Text>
                                 </>
                             )}
                         </TouchableOpacity>
 
-                        <Text style={[styles.smallHeading, { color: themeColors.subtext, marginTop: 20 }]}>{t("auto_backup")}</Text>
+                        <SectionHeader title="FREQUENCY" icon="time-outline" iconColor={themeColors.subtext} themeColors={themeColors} />
                         <View style={styles.freqRow}>
                             {["None", "Daily", "Weekly", "Monthly"].map(f => (
                                 <TouchableOpacity
@@ -302,29 +344,25 @@ export default function DataManagement() {
                                     <Text style={[
                                         styles.freqText,
                                         { color: themeColors.subtext },
-                                        stats?.backupFrequency === f && { color: "#5B8A72", fontWeight: '700' }
+                                        stats?.backupFrequency === f && { color: themeColors.primary, fontWeight: '700' }
                                     ]}>
-                                        {t(f.toLowerCase())}
+                                        {f}
                                     </Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
+                        <View style={{ height: 16 }} />
                     </View>
 
-                    {/* Export / Import Section */}
-                    <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-                        <View style={styles.cardHeader}>
-                            <Ionicons name="document-text-outline" size={24} color="#D4A853" />
-                            <Text style={[styles.cardTitle, { color: themeColors.text }]}>Files & Reports</Text>
-                        </View>
-
+                    <SectionHeader title="REPORTS & IMPORT" icon="document-text-outline" iconColor="#FACC15" themeColors={themeColors} />
+                    <View style={[styles.card, { backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2B32", borderColor: themeColors.border }]}>
                         <View style={styles.gridActions}>
                             <TouchableOpacity
                                 style={[styles.gridBtn, { backgroundColor: themeColors.border }]}
                                 onPress={() => handleExport('excel')}
                                 disabled={exporting}
                             >
-                                <MaterialCommunityIcons name="file-excel" size={24} color="#22C55E" />
+                                <MaterialCommunityIcons name="file-excel" size={24} color="#4ADE80" />
                                 <Text style={[styles.gridBtnText, { color: themeColors.text }]}>Excel</Text>
                             </TouchableOpacity>
 
@@ -333,44 +371,42 @@ export default function DataManagement() {
                                 onPress={() => setRangeModalVisible(true)}
                                 disabled={exporting}
                             >
-                                <MaterialCommunityIcons name="file-pdf-box" size={24} color="#EF4444" />
+                                <MaterialCommunityIcons name="file-pdf-box" size={24} color="#F87171" />
                                 <Text style={[styles.gridBtnText, { color: themeColors.text }]}>PDF Report</Text>
                             </TouchableOpacity>
                         </View>
 
-                        <View style={{ height: 1.5, backgroundColor: themeColors.border, marginVertical: 20 }} />
-
                         <TouchableOpacity
-                            style={[styles.importBtn, { borderColor: themeColors.primary }]}
+                            style={[styles.importBtn, { borderColor: themeColors.border, marginTop: 16 }]}
                             onPress={handleImport}
                             disabled={importing}
                         >
                             {importing ? <ActivityIndicator color={themeColors.primary} /> : (
                                 <>
-                                    <Ionicons name="cloud-upload-outline" size={20} color={themeColors.primary} />
-                                    <View>
-                                        <Text style={[styles.importBtnText, { color: themeColors.primary }]}>{t("import_data")}</Text>
-                                        <Text style={{ fontSize: 10, color: themeColors.subtext, textAlign: 'center' }}>Headers: Date, Vendor, Category, Quantity...</Text>
-                                    </View>
+                                    <Ionicons name="cloud-upload-outline" size={20} color={themeColors.subtext} style={{ marginRight: 8 }} />
+                                    <Text style={[styles.importBtnText, { color: themeColors.text }]}>Import from Excel</Text>
                                 </>
                             )}
                         </TouchableOpacity>
+                        <View style={{ height: 16 }} />
                     </View>
 
-                    {/* Danger Zone */}
-                    <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.danger + '30' }]}>
-                        <View style={styles.cardHeader}>
-                            <Ionicons name="warning-outline" size={24} color={themeColors.danger} />
-                            <Text style={[styles.cardTitle, { color: themeColors.danger }]}>{t("danger_zone")}</Text>
+                    <SectionHeader title="DANGER ZONE" icon="warning-outline" iconColor={themeColors.danger} themeColors={themeColors} />
+                    <View style={[styles.card, { backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2B32", borderColor: themeColors.danger + '40' }]}>
+                        <View style={styles.row}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.rowLabel, { color: themeColors.danger }]}>Clear All Records</Text>
+                                <Text style={[styles.rowSublabel, { color: themeColors.subtext }]}>Permanently wipe all local income and expense data</Text>
+                            </View>
                         </View>
-                        <Text style={[styles.dangerNote, { color: themeColors.subtext }]}>{t("confirm_clear_msg")}</Text>
-
                         <TouchableOpacity
-                            style={[styles.dangerBtn, { backgroundColor: themeColors.danger + '15' }]}
+                            style={[styles.dangerBtn, { backgroundColor: themeColors.danger + '10', borderColor: themeColors.danger }]}
                             onPress={() => setClearModalVisible(true)}
                         >
-                            <Text style={[styles.dangerBtnText, { color: themeColors.danger }]}>{t("clear_all_data")}</Text>
+                            <Ionicons name="trash-outline" size={20} color={themeColors.danger} style={{ marginRight: 8 }} />
+                            <Text style={[styles.dangerBtnText, { color: themeColors.danger }]}>Wipe Local Data</Text>
                         </TouchableOpacity>
+                        <View style={{ height: 16 }} />
                     </View>
 
                     <View style={{ height: 40 }} />
@@ -459,20 +495,15 @@ export default function DataManagement() {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1
-    },
-    loadingContainer: {
         flex: 1,
-        justifyContent: "center",
-        alignItems: "center"
     },
     header: {
         flexDirection: "row",
         alignItems: "center",
         paddingHorizontal: 20,
-        paddingTop: Platform.OS === "android" ? 40 : 10,
-        paddingBottom: 15,
-        gap: 16,
+        paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 40) + 10 : 10,
+        paddingBottom: 20,
+        borderBottomWidth: 1,
     },
     backBtn: {
         width: 44,
@@ -484,15 +515,42 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 22,
-        fontWeight: "800"
+        fontWeight: "800",
+    },
+    headerSub: {
+        fontSize: 12,
+        marginTop: 2,
+        fontWeight: "500",
     },
     scrollContent: {
-        padding: 20,
-        paddingBottom: 40,
+        padding: 24,
+    },
+    sectionHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 30,
+        marginBottom: 12,
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+    },
+    sectionIconWrap: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: 10,
+    },
+    sectionTitle: {
+        fontSize: 12,
+        fontWeight: "800",
+        letterSpacing: 1,
+        textTransform: "uppercase",
     },
     card: {
-        borderRadius: 28,
-        padding: 24,
+        borderRadius: 24,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
         marginBottom: 24,
         borderWidth: 1,
         elevation: 2,
@@ -501,147 +559,140 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 10,
     },
-    cardHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginBottom: 24,
-        gap: 12
+    row: {
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderColor: "rgba(0,0,0,0.05)",
     },
-    cardTitle: {
-        fontSize: 18,
-        fontWeight: "800"
+    rowLabel: {
+        fontSize: 15,
+        fontWeight: "700",
+        marginBottom: 4,
+    },
+    rowSublabel: {
+        fontSize: 12,
+        opacity: 0.7,
+        lineHeight: 18,
     },
     storageInfo: {
         flexDirection: "row",
         justifyContent: "space-between",
+        alignItems: "center",
         marginBottom: 12
     },
     storageText: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: "700",
-        opacity: 0.8
     },
     storagePercent: {
         fontSize: 15,
         fontWeight: "800"
     },
+    storageSubText: {
+        fontSize: 11,
+        marginTop: 8,
+        fontWeight: "600",
+    },
     pBarBg: {
-        height: 10,
-        borderRadius: 5,
+        height: 8,
+        borderRadius: 4,
         overflow: "hidden",
-        marginBottom: 24
     },
     pBarFill: {
         height: "100%",
-        borderRadius: 5
+        borderRadius: 4
     },
-    infoRow: {
+    primaryActionBtn: {
         flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 20
+        alignItems: "center",
+        justifyContent: "center",
+        height: 54,
+        borderRadius: 14,
+        elevation: 4,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        marginTop: 16,
+        marginBottom: 12,
     },
-    infoLabel: {
-        fontSize: 13,
-        fontWeight: "600",
-        opacity: 0.7
+    secondaryActionBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        height: 54,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        marginBottom: 10,
     },
-    infoValue: {
+    actionBtnText: {
         fontSize: 15,
         fontWeight: "700"
     },
-    actionBtn: {
-        flexDirection: "row",
-        height: 60,
-        borderRadius: 18,
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 12,
-        elevation: 4,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-    },
-    actionBtnText: {
-        fontSize: 16,
-        fontWeight: "800"
-    },
-    smallHeading: {
-        fontSize: 12,
-        fontWeight: "800",
-        textTransform: "uppercase",
-        letterSpacing: 2,
-        marginBottom: 16,
-        marginLeft: 4,
-    },
     freqRow: {
         flexDirection: "row",
-        gap: 10,
-        marginTop: 4
+        gap: 8,
+        marginTop: 4,
+        flexWrap: "wrap",
     },
     freqChip: {
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 12,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 10,
         borderWidth: 1,
         borderColor: "transparent",
     },
     freqText: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: "700"
     },
     gridActions: {
         flexDirection: "row",
-        gap: 12
+        gap: 12,
+        marginTop: 10,
     },
     gridBtn: {
         flex: 1,
-        height: 90,
-        borderRadius: 24,
+        height: 80,
+        borderRadius: 18,
         justifyContent: "center",
         alignItems: "center",
-        gap: 10,
+        gap: 8,
         borderWidth: 1,
     },
     gridBtnText: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: "700"
     },
     importBtn: {
-        height: 60,
-        borderRadius: 18,
+        height: 54,
+        borderRadius: 14,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
-        gap: 12,
-        borderWidth: 2,
+        borderWidth: 1.5,
         borderStyle: "dashed",
     },
     importBtnText: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: "700"
     },
-    dangerNote: {
-        fontSize: 14,
-        lineHeight: 22,
-        marginBottom: 24,
-        opacity: 0.8
-    },
     dangerBtn: {
-        height: 60,
-        borderRadius: 18,
+        height: 54,
+        borderRadius: 14,
+        flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        elevation: 4,
+        borderWidth: 1.5,
+        marginTop: 16,
     },
     dangerBtnText: {
         fontWeight: "800",
-        fontSize: 16,
-        letterSpacing: 0.5
+        fontSize: 15,
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: "rgba(15,32,39,0.8)",
+        backgroundColor: "rgba(0,0,0,0.7)",
         justifyContent: "center",
         padding: 24
     },
@@ -652,23 +703,23 @@ const styles = StyleSheet.create({
         elevation: 8,
     },
     modalTitle: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: "800",
         marginBottom: 12
     },
     modalSub: {
-        fontSize: 15,
-        lineHeight: 22,
-        marginBottom: 24,
+        fontSize: 14,
+        lineHeight: 20,
+        marginBottom: 20,
         opacity: 0.8
     },
     passInput: {
-        height: 60,
+        height: 54,
         borderWidth: 1.5,
-        borderRadius: 16,
-        paddingHorizontal: 18,
+        borderRadius: 14,
+        paddingHorizontal: 16,
         fontSize: 16,
-        marginBottom: 28,
+        marginBottom: 24,
         fontWeight: "600"
     },
     modalActions: {
@@ -677,36 +728,36 @@ const styles = StyleSheet.create({
     },
     mBtn: {
         flex: 1,
-        height: 56,
-        borderRadius: 16,
+        height: 50,
+        borderRadius: 14,
         justifyContent: "center",
         alignItems: "center"
     },
     mBtnText: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: "700"
     },
     rangeGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
-        marginBottom: 24
+        gap: 10,
+        marginBottom: 20
     },
     rangeBtn: {
         width: '48%',
-        height: 54,
-        borderRadius: 14,
+        height: 50,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
     },
     rangeBtnText: {
         fontWeight: '700',
-        fontSize: 14
+        fontSize: 13
     },
     cancelBtn: {
-        height: 54,
-        borderRadius: 14,
+        height: 50,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
         width: '100%',
@@ -714,6 +765,6 @@ const styles = StyleSheet.create({
     },
     cancelBtnText: {
         fontWeight: '800',
-        fontSize: 15
+        fontSize: 14
     },
 });

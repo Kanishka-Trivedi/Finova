@@ -67,7 +67,6 @@ const steelSizes = ["8mm", "10mm", "12mm", "16mm", "20mm", "25mm", "Centering Wi
 const aggregateSizes = ["24 to 40mm", "40 to 60mm"];
 
 const paymentModes = ["Cash", "UPI", "Bank Transfer", "Cheque", "Credit Card"];
-
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAYS_OF_WEEK = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
@@ -229,7 +228,7 @@ function DropdownModal({ visible, onClose, onSelect, options, selected, title })
 
 export default function Expense() {
   const { userToken } = useContext(AuthContext);
-  const { t, themeColors, settings, currencySymbol, formatAmount, convertToBase } = useSettings();
+  const { t, themeColors, settings, currencySymbol, formatAmount, convertToBase, formatDate } = useSettings();
   const [expenses, setExpenses] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("All");
@@ -394,11 +393,7 @@ export default function Expense() {
     }
   };
 
-  const formatDate = (d) => {
-    if (!d) return "";
-    const dt = new Date(d);
-    return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-  };
+
 
   // Filter by category then by search query (vendor name or date)
   const filteredExpenses = useMemo(() => {
@@ -546,7 +541,7 @@ export default function Expense() {
 
         {/* Search Bar */}
         <View style={[styles.searchBar, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }]}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons name="search-outline" size={18} color={themeColors.subtext} style={{ marginRight: 10 }} />
           <TextInput
             placeholder={t('search_placeholder')}
             placeholderTextColor={themeColors.subtext}
@@ -605,8 +600,9 @@ export default function Expense() {
         <TouchableOpacity
           style={[styles.fab, { backgroundColor: themeColors.primary }]}
           onPress={() => setModalVisible(true)}
+          activeOpacity={0.8}
         >
-          <Text style={[styles.fabText, { color: themeColors.tabBar }]}>+</Text>
+          <Ionicons name="add" size={32} color="#fff" />
         </TouchableOpacity>
 
         {/* Add Expense Modal */}
@@ -988,12 +984,16 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 30,
     right: 25,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 10,
+    elevation: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
 
   fabText: {
@@ -1129,10 +1129,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === "web" ? 10 : 0,
-    marginBottom: 12,
-    height: 46,
+    paddingHorizontal: 16,
+    marginBottom: 15,
+    height: 48,
   },
 
   searchIcon: {

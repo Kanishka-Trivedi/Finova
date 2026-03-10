@@ -39,6 +39,12 @@ const userSchema = new mongoose.Schema({
       ip: { type: String }
     }
   ],
+  // Localization & Preferences
+  currency: { type: String, default: "INR" },
+  exchangeRate: { type: Number, default: 92.59 },
+  language: { type: String, default: "English" },
+  dateFormat: { type: String, default: "DD/MM/YYYY" },
+  theme: { type: String, enum: ["light", "dark"], default: "light" },
   createdAt: { type: Date, default: Date.now },
 });
 

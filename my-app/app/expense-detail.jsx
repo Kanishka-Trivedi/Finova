@@ -28,7 +28,7 @@ export default function ExpenseDetail() {
     const params = useLocalSearchParams();
     const router = useRouter();
     const { userToken } = useContext(AuthContext);
-    const { t, themeColors, settings, currencySymbol, formatAmount, convertToDisplay, convertToBase } = useSettings();
+    const { t, themeColors, settings, currencySymbol, formatAmount, convertToDisplay, convertToBase, formatDate } = useSettings();
 
     // Initial state from params
     const [expenseData, setExpenseData] = useState({
@@ -59,6 +59,7 @@ export default function ExpenseDetail() {
         ...expenseData,
         totalAmount: convertToDisplay(expenseData.totalAmount).toString()
     });
+    const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 
     useEffect(() => {
         const backAction = () => {
@@ -116,16 +117,7 @@ export default function ExpenseDetail() {
         }
     };
 
-    const formatDate = (dateString) => {
-        if (!dateString) return "";
-        const date = new Date(dateString);
-        return date.toLocaleDateString("en-IN", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-        });
-    };
+
 
     const DetailItem = ({ icon, label, value, color = "#fff", isLarge = false }) => (
         <View style={styles.detailItem}>

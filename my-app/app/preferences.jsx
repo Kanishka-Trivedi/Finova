@@ -12,22 +12,34 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSettings } from "../context/SettingsContext";
+import { StatusBar } from "react-native";
 
-const PreferenceItem = ({ icon, label, sublabel, children, color = "#4ADE80", themeColors }) => (
-    <View style={[styles.preferenceCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-        <View style={styles.cardInfo}>
-            <View style={[styles.iconBox, { backgroundColor: `${color}15` }]}>
-                <Ionicons name={icon} size={22} color={color} />
-            </View>
-            <View style={styles.textContainer}>
-                <Text style={[styles.prefLabel, { color: themeColors.text }]}>{label}</Text>
-                {sublabel && <Text style={[styles.prefSublabel, { color: themeColors.subtext }]}>{sublabel}</Text>}
-            </View>
+const SectionHeader = ({ title, icon, iconColor, themeColors }) => (
+    <View style={[styles.sectionHeader, { borderColor: themeColors.border }]}>
+        <View style={[styles.sectionIconWrap, { backgroundColor: `${iconColor}18` }]}>
+            <Ionicons name={icon} size={18} color={iconColor} />
         </View>
-        <View style={styles.controlBox}>
-            {children}
+        <Text style={[styles.sectionTitle, { color: themeColors.subtext }]}>{title}</Text>
+    </View>
+);
+
+const PreferenceItem = ({ icon, label, sublabel, children, color = "#4ADE80", themeColors, noBorder }) => (
+    <View style={[styles.row, { borderBottomColor: themeColors.border }, noBorder && { borderBottomWidth: 0 }]}>
+        <View style={{ flex: 1 }}>
+            <View style={styles.cardInfo}>
+                <View style={[styles.iconBox, { backgroundColor: `${color}15` }]}>
+                    <Ionicons name={icon} size={20} color={color} />
+                </View>
+                <View style={styles.textContainer}>
+                    <Text style={[styles.prefLabel, { color: themeColors.text }]}>{label}</Text>
+                    {sublabel && <Text style={[styles.prefSublabel, { color: themeColors.subtext }]}>{sublabel}</Text>}
+                </View>
+            </View>
+            <View style={styles.controlBox}>
+                {children}
+            </View>
         </View>
     </View>
 );
@@ -85,19 +97,26 @@ export default function Preferences() {
     return (
         <LinearGradient colors={themeColors.background} style={styles.container}>
             <SafeAreaView style={{ flex: 1 }}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: themeColors.border }]}>
-                        <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+                <View style={[styles.header, { borderBottomColor: themeColors.border }]}>
+                    <TouchableOpacity
+                        onPress={() => router.back()}
+                        style={[styles.backBtn, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+                    >
+                        <Ionicons name="chevron-back" size={24} color={themeColors.text} />
                     </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: themeColors.text }]}>{t('app_settings')}</Text>
-                    <View style={{ width: 40 }} />
+                    <View style={{ flex: 1, marginLeft: 16 }}>
+                        <Text style={[styles.headerTitle, { color: themeColors.text }]}>{t('app_settings')}</Text>
+                        <Text style={[styles.headerSub, { color: themeColors.subtext }]}>Personalize your experience</Text>
+                    </View>
+                    <View style={{ width: 44 }}>
+                        {saving && <ActivityIndicator size="small" color={themeColors.primary} />}
+                    </View>
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-                    <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: themeColors.subtext }]}>{t('localization')}</Text>
-
+                    <SectionHeader title="LOCALIZATION" icon="globe-outline" iconColor="#4ADE80" themeColors={themeColors} />
+                    <View style={[styles.card, { backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2B32", borderColor: themeColors.border }]}>
                         <PreferenceItem
                             icon="cash-outline"
                             label={t('default_currency')}
@@ -115,11 +134,26 @@ export default function Preferences() {
                             />
                         </PreferenceItem>
 
+                        {localSettings.currency === "USD" && (
+                            <View style={[styles.infoBox, { marginVertical: 16, borderStyle: 'solid', borderColor: themeColors.primary + '30' }]}>
+                                <Ionicons name="swap-horizontal" size={20} color={themeColors.primary} />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.infoText, { color: themeColors.text, fontWeight: '700' }]}>
+                                        Exchange Rate: 1 USD = {localSettings.exchangeRate || 92.59} INR
+                                    </Text>
+                                    <Text style={[styles.infoText, { color: themeColors.subtext, fontSize: 10 }]}>
+                                        All your data is stored in INR and converted for display.
+                                    </Text>
+                                </View>
+                            </View>
+                        )}
+
                         <PreferenceItem
                             icon="language-outline"
                             label={t('app_language')}
                             color="#38BDF8"
                             themeColors={themeColors}
+                            noBorder
                         >
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalSelector}>
                                 <Selector
@@ -138,9 +172,8 @@ export default function Preferences() {
                         </PreferenceItem>
                     </View>
 
-                    <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: themeColors.subtext }]}>{t('formatting_defaults')}</Text>
-
+                    <SectionHeader title="FORMATTING DEFAULTS" icon="calendar-outline" iconColor="#FACC15" themeColors={themeColors} />
+                    <View style={[styles.card, { backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2B32", borderColor: themeColors.border }]}>
                         <PreferenceItem
                             icon="calendar-outline"
                             label={t('date_format')}
@@ -163,6 +196,7 @@ export default function Preferences() {
                             label={t('default_payment')}
                             color="#A78BFA"
                             themeColors={themeColors}
+                            noBorder
                         >
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalSelector}>
                                 <Selector
@@ -180,14 +214,14 @@ export default function Preferences() {
                         </PreferenceItem>
                     </View>
 
-                    <View style={styles.section}>
-                        <Text style={[styles.sectionTitle, { color: themeColors.subtext }]}>{t('appearance')}</Text>
-
+                    <SectionHeader title="APPEARANCE" icon="color-palette-outline" iconColor="#F472B6" themeColors={themeColors} />
+                    <View style={[styles.card, { backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2B32", borderColor: themeColors.border }]}>
                         <PreferenceItem
                             icon="moon-outline"
                             label={t('theme_mode')}
                             color="#F472B6"
                             themeColors={themeColors}
+                            noBorder
                         >
                             <Selector
                                 selected={localSettings.theme}
@@ -233,11 +267,11 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         paddingHorizontal: 20,
-        paddingTop: Platform.OS === "android" ? 40 : 10,
-        paddingBottom: 15,
-        gap: 16,
+        paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 40) + 10 : 10,
+        paddingBottom: 20,
+        borderBottomWidth: 1,
     },
-    backButton: {
+    backBtn: {
         width: 44,
         height: 44,
         borderRadius: 14,
@@ -249,25 +283,41 @@ const styles = StyleSheet.create({
         fontSize: 22,
         fontWeight: "800",
     },
-    scrollContent: {
-        padding: 20,
-        paddingBottom: 40,
+    headerSub: {
+        fontSize: 12,
+        marginTop: 2,
+        fontWeight: "500",
     },
-    section: {
-        marginBottom: 32,
+    scrollContent: {
+        padding: 24,
+    },
+    sectionHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 30,
+        marginBottom: 12,
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+    },
+    sectionIconWrap: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        justifyContent: "center",
+        alignItems: "center",
+        marginRight: 10,
     },
     sectionTitle: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: "800",
+        letterSpacing: 1,
         textTransform: "uppercase",
-        letterSpacing: 2,
-        marginBottom: 16,
-        marginLeft: 4,
     },
-    preferenceCard: {
+    card: {
         borderRadius: 24,
-        padding: 20,
-        marginBottom: 16,
+        paddingHorizontal: 20,
+        paddingVertical: 8,
+        marginBottom: 24,
         borderWidth: 1,
         elevation: 2,
         shadowColor: "#000",
@@ -275,15 +325,19 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 10,
     },
+    row: {
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+    },
     cardInfo: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 20,
+        marginBottom: 16,
     },
     iconBox: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
+        width: 40,
+        height: 40,
+        borderRadius: 12,
         justifyContent: "center",
         alignItems: "center",
     },
@@ -292,39 +346,40 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     prefLabel: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: "700",
     },
     prefSublabel: {
-        fontSize: 12,
-        marginTop: 3,
+        fontSize: 11,
+        marginTop: 2,
         opacity: 0.7,
     },
     controlBox: {
-        marginTop: 5,
+        marginTop: 2,
     },
     selectorGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        gap: 10,
+        gap: 8,
     },
     horizontalSelector: {
-        marginLeft: -5,
+        marginLeft: -2,
     },
     chip: {
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
         borderWidth: 1,
     },
     chipText: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: "600",
     },
     applyButton: {
         paddingVertical: 18,
         borderRadius: 20,
         alignItems: "center",
+        marginTop: 10,
         marginBottom: 20,
         elevation: 6,
         shadowColor: "#000",
