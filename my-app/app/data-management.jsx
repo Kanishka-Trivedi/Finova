@@ -260,7 +260,7 @@ export default function DataManagement() {
 
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-                    <SectionHeader title="STORAGE STATUS" icon="database-outline" iconColor="#A78BFA" themeColors={themeColors} />
+                    <SectionHeader title="STORAGE STATUS" icon="server-outline" iconColor="#A78BFA" themeColors={themeColors} />
                     <View style={[styles.card, { backgroundColor: settings.theme === "light" ? themeColors.card : "#1A2B32", borderColor: themeColors.border }]}>
                         <View style={styles.row}>
                             <View style={{ flex: 1 }}>

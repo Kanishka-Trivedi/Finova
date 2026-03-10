@@ -228,13 +228,13 @@ export default function AppLockScreen() {
                         backgroundColor: filled
                             ? error
                                 ? "#EF4444"
-                                : themeColors.primary
-                            : "rgba(255,255,255,0.15)",
+                                : "#22C55E"
+                            : "#E2E8F0",
                         borderColor: filled
                             ? error
                                 ? "#EF4444"
-                                : themeColors.primary
-                            : "rgba(255,255,255,0.3)",
+                                : "#22C55E"
+                            : "#CBD5E1",
                         transform: [{ scale: filled ? 1.15 : 1 }],
                     },
                 ]}
@@ -244,18 +244,17 @@ export default function AppLockScreen() {
 
     return (
         <Modal visible={isLocked} transparent={false} animationType="none" statusBarTranslucent>
-            <StatusBar barStyle="light-content" backgroundColor="#0F2027" />
+            <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
             <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-                {/* Background gradient effect via views */}
-                <View style={styles.bgTop} />
-                <View style={styles.bgBottom} />
+                {/* Background effect */}
+                <View style={styles.bgOverlay} />
 
                 {/* ── Top section ── */}
                 <View style={styles.topSection}>
                     {/* Shield icon */}
                     <View style={styles.iconRing}>
                         <View style={styles.iconInner}>
-                            <Ionicons name="shield-checkmark" size={38} color={themeColors.primary} />
+                            <Ionicons name="shield-checkmark" size={38} color="#22C55E" />
                         </View>
                     </View>
 
@@ -302,7 +301,7 @@ export default function AppLockScreen() {
                                                 <Ionicons
                                                     name={biometricType === "face" ? "scan-outline" : "finger-print-outline"}
                                                     size={28}
-                                                    color={themeColors.primary}
+                                                    color="#22C55E"
                                                 />
                                             </TouchableOpacity>
                                         ) : (
@@ -317,7 +316,7 @@ export default function AppLockScreen() {
                                                 onPress={handleDelete}
                                                 activeOpacity={0.7}
                                             >
-                                                <Ionicons name="backspace-outline" size={26} color="rgba(255,255,255,0.7)" />
+                                                <Ionicons name="backspace-outline" size={26} color="#64748B" />
                                             </TouchableOpacity>
                                         );
                                     }
@@ -341,16 +340,16 @@ export default function AppLockScreen() {
                 {/* ── Biometric only (no PIN): big button ── */}
                 {hasBiometric && !hasPin && (
                     <TouchableOpacity
-                        style={[styles.biometricBtn, { borderColor: themeColors.primary }]}
+                        style={[styles.biometricBtn, { borderColor: "#22C55E" }]}
                         onPress={triggerBiometric}
                         activeOpacity={0.7}
                     >
                         <Ionicons
                             name={biometricType === "face" ? "scan-outline" : "finger-print-outline"}
                             size={32}
-                            color={themeColors.primary}
+                            color="#22C55E"
                         />
-                        <Text style={[styles.biometricBtnText, { color: themeColors.primary }]}>
+                        <Text style={[styles.biometricBtnText, { color: "#22C55E" }]}>
                             {biometricType === "face" ? "Authenticate with Face ID" : "Authenticate with Fingerprint"}
                         </Text>
                     </TouchableOpacity>
@@ -362,7 +361,7 @@ export default function AppLockScreen() {
                         <Ionicons
                             name={biometricType === "face" ? "scan-outline" : "finger-print-outline"}
                             size={18}
-                            color="rgba(255,255,255,0.5)"
+                            color="#64748B"
                         />
                         <Text style={styles.bioLinkText}>
                             Use {biometricType === "face" ? "Face ID" : "fingerprint"} instead
@@ -401,23 +400,14 @@ export default function AppLockScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#0F2027",
+        backgroundColor: "#F8FAFC",
         alignItems: "center",
         justifyContent: "center",
         paddingBottom: Platform.OS === "android" ? 20 : 40,
     },
-    bgTop: {
+    bgOverlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: "#0F2027",
-    },
-    bgBottom: {
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: "40%",
-        backgroundColor: "#203A43",
-        opacity: 0.5,
+        backgroundColor: "#F8FAFC",
     },
 
     /* ── Top ── */
@@ -429,31 +419,31 @@ const styles = StyleSheet.create({
         width: 88,
         height: 88,
         borderRadius: 44,
-        backgroundColor: "rgba(74,222,128,0.08)",
+        backgroundColor: "rgba(34,197,94,0.08)",
         justifyContent: "center",
         alignItems: "center",
         marginBottom: 20,
         borderWidth: 1.5,
-        borderColor: "rgba(74,222,128,0.2)",
+        borderColor: "rgba(34,197,94,0.2)",
     },
     iconInner: {
         width: 68,
         height: 68,
         borderRadius: 34,
-        backgroundColor: "rgba(74,222,128,0.12)",
+        backgroundColor: "rgba(34,197,94,0.12)",
         justifyContent: "center",
         alignItems: "center",
     },
     title: {
         fontSize: 28,
         fontWeight: "800",
-        color: "#FFFFFF",
+        color: "#1E293B",
         letterSpacing: -0.5,
         marginBottom: 8,
     },
     subtitle: {
         fontSize: 14,
-        color: "rgba(255,255,255,0.5)",
+        color: "#64748B",
         textAlign: "center",
         paddingHorizontal: 40,
     },
@@ -499,18 +489,25 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: "rgba(255,255,255,0.06)",
+        backgroundColor: "#FFFFFF",
         borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.08)",
+        borderColor: "#E2E8F0",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
     },
     padKeySpecial: {
         backgroundColor: "transparent",
         borderColor: "transparent",
+        shadowOpacity: 0,
+        elevation: 0,
     },
     padKeyText: {
         fontSize: 26,
         fontWeight: "600",
-        color: "#FFFFFF",
+        color: "#1E293B",
         letterSpacing: -0.5,
     },
 
@@ -539,7 +536,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     bioLinkText: {
-        color: "rgba(255,255,255,0.45)",
+        color: "#94A3B8",
         fontSize: 13,
         fontWeight: "500",
     },
@@ -551,7 +548,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
     },
     logoutLinkText: {
-        color: "rgba(255,255,255,0.25)",
+        color: "#94A3B8",
         fontSize: 12,
         textDecorationLine: "underline",
     },

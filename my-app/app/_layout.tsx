@@ -37,7 +37,7 @@ function RootLayoutNav() {
   const currentTheme = settings.theme === "light" ? DefaultTheme : DarkTheme;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <NavigationThemeProvider value={currentTheme}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="login" />

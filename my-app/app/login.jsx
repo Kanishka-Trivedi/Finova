@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,9 +8,10 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   SafeAreaView,
   StatusBar,
+  Dimensions,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import axios from "axios";
@@ -19,6 +20,9 @@ import { BASE_URL } from "../config";
 import { Ionicons } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import FinanceAnimation from "../assets/Finance.json";
+import * as NavigationBar from "expo-navigation-bar";
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -26,6 +30,13 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const { login } = useContext(AuthContext);
+
+  useEffect(() => {
+    if (Platform.OS === "android") {
+      NavigationBar.setBackgroundColorAsync("#FFFFFF");
+      NavigationBar.setButtonStyleAsync("dark");
+    }
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -45,104 +56,121 @@ export default function Login() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        style={{ flex: 1, backgroundColor: "#FFFFFF" }}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
-          showsVerticalScrollIndicator={false}
           contentContainerStyle={{ flexGrow: 1 }}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {/* Illustration/Lottie Space */}
-          <View style={styles.topSpace}>
-            <LottieView
-              source={FinanceAnimation}
-              autoPlay
-              loop
-              style={styles.lottieAnimation}
-            />
-          </View>
-
-          <View style={styles.formCard}>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Enter your credentials to access your account</Text>
-
-            {/* Email Input */}
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color="#64748B" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Email address"
-                placeholderTextColor="#94A3B8"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </View>
-
-            {/* Password Input */}
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color="#64748B" style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Password"
-                placeholderTextColor="#94A3B8"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons
-                  name={showPassword ? "eye-outline" : "eye-off-outline"}
-                  size={20}
-                  color="#64748B"
+          <View style={styles.mainContainer}>
+            <SafeAreaView style={{ backgroundColor: "#F8FAFC" }}>
+              <View style={styles.topSpace}>
+                <LottieView
+                  source={FinanceAnimation}
+                  autoPlay
+                  loop
+                  style={styles.lottieAnimation}
                 />
+              </View>
+            </SafeAreaView>
+
+            <View style={styles.formCard}>
+              <View style={styles.brandContainer}>
+                <Text style={styles.brandText}>
+                  <Text style={styles.brandFin}>Fin</Text>
+                  <Text style={styles.brandOva}>ova</Text>
+                </Text>
+                <View style={styles.brandLine} />
+              </View>
+
+              <Text style={styles.title}>Welcome Back</Text>
+              <Text style={styles.subtitle}>Log in to your financial headquarters</Text>
+
+              <View style={styles.inputsWrapper}>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="mail-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email address"
+                    placeholderTextColor="#94A3B8"
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Ionicons name="lock-closed-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    placeholder="Password"
+                    placeholderTextColor="#94A3B8"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                    <Ionicons
+                      name={showPassword ? "eye-outline" : "eye-off-outline"}
+                      size={20}
+                      color="#64748B"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <TouchableOpacity style={styles.forgotPass}>
+                <Text style={styles.linkText}>Forgot Password?</Text>
               </TouchableOpacity>
-            </View>
 
-            <TouchableOpacity style={styles.forgotPass}>
-              <Text style={styles.linkText}>Forgot Password?</Text>
-            </TouchableOpacity>
-
-            {/* Login Button */}
-            <TouchableOpacity style={styles.button} onPress={handleLogin}>
-              <Text style={styles.buttonText}>Login</Text>
-            </TouchableOpacity>
-
-            {/* Footer */}
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => router.push("/register")}>
-                <Text style={[styles.linkText, { fontWeight: "700" }]}>Register Now</Text>
+              <TouchableOpacity style={styles.button} onPress={handleLogin}>
+                <Text style={styles.buttonText}>Log In</Text>
               </TouchableOpacity>
-            </View>
 
-            <View style={{ height: 40 }} />
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Don't have an account? </Text>
+                <TouchableOpacity onPress={() => router.push("/register")}>
+                  <Text style={[styles.linkText, { fontWeight: "700" }]}>Register Now</Text>
+                </TouchableOpacity>
+              </View>
+              {/* Extra spacer to ensure color reaches absolute bottom */}
+              <View style={{ height: 100, backgroundColor: '#FFFFFF' }} />
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#FFFFFF",
+  },
+  mainContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
   },
   topSpace: {
-    height: 320,
+    height: SCREEN_HEIGHT * 0.32,
     justifyContent: "center",
     alignItems: "center",
-    paddingTop: 60,
+    paddingTop: 50,
     paddingBottom: 20,
+    backgroundColor: "#F8FAFC",
   },
   lottieAnimation: {
-    width: 220,
-    height: 220,
+    width: SCREEN_HEIGHT * 0.22,
+    height: SCREEN_HEIGHT * 0.22,
   },
   formCard: {
     flex: 1,
@@ -150,26 +178,53 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
     paddingHorizontal: 30,
-    paddingTop: 40,
+    paddingTop: 30,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.05,
     shadowRadius: 15,
     elevation: 20,
   },
-  title: {
+  brandContainer: {
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  brandText: {
     fontSize: 32,
+    letterSpacing: -1.5,
+  },
+  brandFin: {
+    fontWeight: "300",
+    color: "#1E293B",
+  },
+  brandOva: {
     fontWeight: "900",
-    color: "#0F172A",
+    color: "#22C55E",
+  },
+  brandLine: {
+    width: 35,
+    height: 3,
+    backgroundColor: "#22C55E",
+    borderRadius: 2,
+    marginTop: -4,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#1E293B",
     textAlign: "center",
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#64748B",
     textAlign: "center",
-    marginTop: 10,
-    marginBottom: 40,
+    marginBottom: 20,
     fontWeight: "500",
+  },
+  inputsWrapper: {
+    gap: 10,
   },
   inputContainer: {
     flexDirection: "row",
@@ -177,24 +232,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    height: 60,
-    marginBottom: 16,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 52,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 14,
     color: "#0F172A",
     fontWeight: "600",
   },
   forgotPass: {
     alignItems: "flex-end",
-    marginBottom: 20,
-    marginRight: 5,
+    marginTop: 8,
+    marginBottom: 15,
   },
   linkText: {
     color: "#22C55E",
@@ -202,32 +256,31 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: "#22C55E",
-    height: 60,
-    borderRadius: 18,
+    height: 54,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 10,
     shadowColor: "#22C55E",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   buttonText: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "800",
     letterSpacing: 0.5,
   },
   footer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 35,
+    marginTop: 20,
     alignItems: "center",
   },
   footerText: {
     color: "#64748B",
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "500",
   },
 });
