@@ -192,8 +192,11 @@ export const clearAllData = asyncHandler(async (req, res) => {
 
     const user = await User.findById(req.user._id);
     if (user && (await bcrypt.compare(password, user.password))) {
-        await Expense.deleteMany({ user: req.user._id });
-        res.json({ message: "All expense data has been cleared successfully" });
+        await Promise.all([
+            Expense.deleteMany({ user: req.user._id }),
+            Income.deleteMany({ user: req.user._id })
+        ]);
+        res.json({ message: "All data (expenses & incomes) has been cleared successfully" });
     } else {
         res.status(401).json({ message: "Invalid password. Data not cleared." });
     }
@@ -203,29 +206,46 @@ export const clearAllData = asyncHandler(async (req, res) => {
 // @route   GET /api/data/stats
 // @access  Private
 export const getStats = asyncHandler(async (req, res) => {
-    // Perform aggregation to get exact BSON size of all documents for this user
-    const statsResult = await Expense.aggregate([
-        { $match: { user: req.user._id } },
-        {
-            $group: {
-                _id: null,
-                totalSize: { $sum: { $bsonSize: "$$ROOT" } },
-                count: { $sum: 1 }
+    // Perform aggregation to get exact BSON size of both expenses and incomes
+    const [expenseStats, incomeStats] = await Promise.all([
+        Expense.aggregate([
+            { $match: { user: req.user._id } },
+            {
+                $group: {
+                    _id: null,
+                    totalSize: { $sum: { $bsonSize: "$$ROOT" } },
+                    count: { $sum: 1 }
+                }
             }
-        }
+        ]),
+        Income.aggregate([
+            { $match: { user: req.user._id } },
+            {
+                $group: {
+                    _id: null,
+                    totalSize: { $sum: { $bsonSize: "$$ROOT" } },
+                    count: { $sum: 1 }
+                }
+            }
+        ])
     ]);
 
-    const usedBytes = statsResult.length > 0 ? statsResult[0].totalSize : 0;
-    const count = statsResult.length > 0 ? statsResult[0].count : 0;
+    const expSize = expenseStats.length > 0 ? expenseStats[0].totalSize : 0;
+    const incSize = incomeStats.length > 0 ? incomeStats[0].totalSize : 0;
+    const totalBytes = expSize + incSize;
+
+    const expCount = expenseStats.length > 0 ? expenseStats[0].count : 0;
+    const incCount = incomeStats.length > 0 ? incomeStats[0].count : 0;
+    const totalCount = expCount + incCount;
 
     // Limits based on actual MongoDB Atlas Free Tier (512MB)
-    const usedKB = usedBytes / 1024;
+    const usedKB = totalBytes / 1024;
     const limitKB = 512 * 1024; // 524288 KB
 
     const backupCount = await Backup.countDocuments({ user: req.user._id });
 
     res.json({
-        count,
+        count: totalCount,
         usedKB: parseFloat(usedKB.toFixed(2)),
         limitKB,
         percentage: parseFloat(((usedKB / limitKB) * 100).toFixed(4)),

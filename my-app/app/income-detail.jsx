@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
+import { useData } from "../context/DataContext";
 import { BASE_URL } from "../config";
 import axios from "axios";
 
@@ -29,6 +30,7 @@ export default function IncomeDetail() {
     const router = useRouter();
     const { userToken } = useContext(AuthContext);
     const { t, themeColors, settings, currencySymbol, formatAmount, convertToDisplay, convertToBase, formatDate } = useSettings();
+    const { refreshSilently } = useData();
 
     // Initial state from params
     const [incomeData, setIncomeData] = useState({
@@ -113,6 +115,7 @@ export default function IncomeDetail() {
             });
 
             setIsEditModalVisible(false);
+            refreshSilently(); // Update central store
             Alert.alert("Success", "Income updated successfully");
         } catch (error) {
             console.log("Update error:", error.message);

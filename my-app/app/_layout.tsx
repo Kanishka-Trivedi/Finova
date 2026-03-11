@@ -8,7 +8,14 @@ import { useEffect, useContext } from "react";
 import { AuthProvider, AuthContext } from "../context/AuthContext";
 import { SettingsProvider, useSettings } from "../context/SettingsContext";
 import { AppLockProvider } from "../context/AppLockContext";
+import { DataProvider } from "../context/DataContext";
 import AppLockScreen from "../components/AppLockScreen";
+import * as SplashScreen from 'expo-splash-screen';
+
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* reloading the app might cause some errors here, safely ignore */
+});
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
@@ -22,6 +29,16 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (isLoading) return;
+
+    // Hide the splash screen once the initial loading is done
+    const hideSplash = async () => {
+      try {
+        await SplashScreen.hideAsync();
+      } catch (e) {
+        console.warn(e);
+      }
+    };
+    hideSplash();
 
     const segment = segments[0] as string;
     const inAuthGroup = segment === "(tabs)" || segment === "expense-detail" || segment === "info" || segment === "preferences" || segment === "data-management" || segment === "security";
@@ -62,9 +79,11 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <SettingsProvider>
-        <AppLockProvider>
-          <RootLayoutNav />
-        </AppLockProvider>
+        <DataProvider>
+          <AppLockProvider>
+            <RootLayoutNav />
+          </AppLockProvider>
+        </DataProvider>
       </SettingsProvider>
     </AuthProvider>
   );

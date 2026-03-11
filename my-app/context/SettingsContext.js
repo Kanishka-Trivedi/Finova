@@ -411,6 +411,8 @@ export const SettingsProvider = ({ children }) => {
             if (saved) {
                 currentSettings = JSON.parse(saved);
                 setSettings(currentSettings);
+                // We have cached settings, we can stop the blocking load now
+                setLoading(false);
             }
 
             // 2. Sync with backend if logged in

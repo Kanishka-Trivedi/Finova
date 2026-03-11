@@ -6,17 +6,19 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Dimensions,
   StatusBar,
   RefreshControl,
+  Dimensions,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import axios from "axios";
 import { AuthContext } from "../../context/AuthContext";
 import { useSettings } from "../../context/SettingsContext";
+import { useData } from "../../context/DataContext";
 import { BASE_URL } from "../../config";
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -289,44 +291,53 @@ export default function Dashboard() {
   const TEAL = "#5B8A72";
   const ACCENT = "#D4A853";
 
+  const { expenses, incomes, isRefreshing, lastUpdated: globalLastUpdated, refreshSilently, refresh: refreshData } = useData();
   const [userData, setUserData] = useState(null);
-  const [expenses, setExpenses] = useState([]);
-  const [incomes, setIncomes] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const [loading, setLoading] = useState(false); // Start false to show UI immediately
   const [activeTab, setActiveTab] = useState("Weekly");
   const [activeIncomeTab, setActiveIncomeTab] = useState("Weekly");
 
-  /* ── Data Fetching ── */
-  const fetchAll = useCallback(async () => {
+  const fetchProfile = useCallback(async (isInitial = false) => {
     try {
-      const headers = { Authorization: `Bearer ${userToken}` };
-      const [profileRes, expenseRes, incomeRes] = await Promise.all([
-        axios.get(`${BASE_URL}/api/auth/profile`, { headers }),
-        axios.get(`${BASE_URL}/expenses`, { headers }),
-        axios.get(`${BASE_URL}/incomes`, { headers }),
-      ]);
-      setUserData(profileRes.data);
-      setExpenses(expenseRes.data);
-      setIncomes(incomeRes.data);
-      setLastUpdated(new Date());
+      if (isInitial) {
+        const cached = await AsyncStorage.getItem("cached_profile");
+        if (cached) {
+          setUserData(JSON.parse(cached));
+          setLoading(false);
+        }
+      }
+      const res = await axios.get(`${BASE_URL}/api/auth/profile`, {
+        headers: { Authorization: `Bearer ${userToken}` }
+      });
+      setUserData(res.data);
+      AsyncStorage.setItem("cached_profile", JSON.stringify(res.data));
     } catch (e) {
-      console.log("Dashboard fetch error:", e.message);
+      console.log("Profile error:", e);
     } finally {
       setLoading(false);
     }
   }, [userToken]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (userToken) {
+        refreshSilently();
+        fetchProfile();
+      }
+    }, [userToken, refreshSilently, fetchProfile])
+  );
+
   useEffect(() => {
-    if (userToken) fetchAll();
+    if (userToken) {
+      fetchProfile(true);
+    }
   }, [userToken]);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchAll();
-    setRefreshing(false);
-  }, [fetchAll]);
+    await Promise.all([fetchProfile(), refreshSilently()]);
+  }, [fetchProfile, refreshSilently]);
+
+  const lastUpdated = globalLastUpdated;
 
   /* ── Computed Data ── */
   const now = new Date();
@@ -432,7 +443,7 @@ export default function Dashboard() {
     if (diff < 1) return "Just now";
     if (diff < 60) return `${diff} min ago`;
     return `${Math.floor(diff / 60)}h ago`;
-  }, [lastUpdated, refreshing]);
+  }, [lastUpdated, isRefreshing]);
 
   // Chart data based on active tab (expenses)
   const chartData = useMemo(() => {
@@ -502,31 +513,7 @@ export default function Dashboard() {
     }
   }, [activeIncomeTab, incomes, thisYear]);
 
-  /* ── Loading State ── */
-  if (loading) {
-    return (
-      <LinearGradient colors={themeColors.background} style={{ flex: 1, paddingTop: insets.top + 20, paddingHorizontal: 20 }}>
-        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} translucent backgroundColor="transparent" />
-        <View style={{ gap: 16 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Skeleton w={48} h={48} r={24} />
-            <View style={{ gap: 6 }}>
-              <Skeleton w={160} h={14} />
-              <Skeleton w={100} h={10} />
-            </View>
-          </View>
-          <Skeleton w={SCREEN_W - 40} h={20} />
-          <Skeleton w={SCREEN_W - 40} h={160} r={22} />
-          <View style={{ flexDirection: "row", gap: 14 }}>
-            <Skeleton w={(SCREEN_W - 54) / 2} h={100} r={18} />
-            <Skeleton w={(SCREEN_W - 54) / 2} h={100} r={18} />
-          </View>
-          <Skeleton w={SCREEN_W - 40} h={200} r={22} />
-          <Skeleton w={SCREEN_W - 40} h={180} r={22} />
-        </View>
-      </LinearGradient>
-    );
-  }
+  // Aggressive: Remove the blocking loader block entirely
 
   return (
     <LinearGradient colors={themeColors.background} style={s.container}>
@@ -535,14 +522,6 @@ export default function Dashboard() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scroll, { paddingTop: insets.top + 12 }]}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={TEAL}
-            colors={[TEAL]}
-          />
-        }
       >
         {/* ═══════════ HEADER ═══════════ */}
         <View style={s.headerBar}>

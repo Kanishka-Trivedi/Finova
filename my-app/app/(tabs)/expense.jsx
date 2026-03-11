@@ -16,13 +16,15 @@ import {
   Pressable,
   BackHandler,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PieChart } from "react-native-chart-kit";
 import { Swipeable } from "react-native-gesture-handler";
 import { LinearGradient as ExpoLinearGradient } from "expo-linear-gradient";
 import { AuthContext } from "../../context/AuthContext";
 import { useSettings } from "../../context/SettingsContext";
+import { useData } from "../../context/DataContext";
 import { BASE_URL } from "../../config";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 const screenWidth = Dimensions.get("window").width;
@@ -61,7 +63,7 @@ const fixedUnits = {
 };
 
 const transportUnits = ["Hours", "Days", "Trips"];
-const categoriesWithoutUnits = ["Labor", "Equipment", "Plumbing"];
+const categoriesWithoutUnits = ["Labor", "Labour", "Equipment", "Plumbing", "Miscellaneous"];
 
 const steelSizes = ["8mm", "10mm", "12mm", "16mm", "20mm", "25mm", "Centering Wire"];
 const aggregateSizes = ["24 to 40mm", "40 to 60mm"];
@@ -229,7 +231,7 @@ function DropdownModal({ visible, onClose, onSelect, options, selected, title })
 export default function Expense() {
   const { userToken } = useContext(AuthContext);
   const { t, themeColors, settings, currencySymbol, formatAmount, convertToBase, formatDate } = useSettings();
-  const [expenses, setExpenses] = useState([]);
+  const { expenses, setExpenses, refresh: fetchExpenses, refreshSilently } = useData();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -289,20 +291,13 @@ export default function Expense() {
     return () => backHandler.remove();
   }, [modalVisible]);
 
-  useEffect(() => {
-    if (userToken) fetchExpenses();
-  }, [userToken]);
-
-  const fetchExpenses = async () => {
-    try {
-      const res = await axios.get(`${BASE_URL}/expenses`, {
-        headers: { Authorization: `Bearer ${userToken}` },
-      });
-      setExpenses(res.data);
-    } catch (error) {
-      console.log("Fetch error:", error.message);
-    }
-  };
+  useFocusEffect(
+    useCallback(() => {
+      if (userToken) {
+        fetchExpenses();
+      }
+    }, [userToken, fetchExpenses])
+  );
 
   const resetForm = () => {
     setDate(new Date().toISOString().split("T")[0]);
@@ -374,6 +369,7 @@ export default function Expense() {
       );
 
       setExpenses([res.data, ...expenses]);
+      refreshSilently(); // Sync with server in background
       setModalVisible(false);
       resetForm();
     } catch (error) {
@@ -388,6 +384,7 @@ export default function Expense() {
         headers: { Authorization: `Bearer ${userToken}` },
       });
       setExpenses(expenses.filter((item) => item._id !== id));
+      refreshSilently();
     } catch (error) {
       console.log("Delete error:", error.message);
     }
@@ -485,8 +482,12 @@ export default function Expense() {
                   {item.category}{item.diameter ? ` (${item.diameter})` : ""}
                 </Text>
               </View>
-              <Text style={[styles.cardDot, { color: themeColors.subtext }]}>•</Text>
-              <Text style={[styles.cardDetail, { color: themeColors.subtext }]}>{item.quantity} {item.unit} @ {formatAmount(item.ratePerUnit)}</Text>
+              {!categoriesWithoutUnits.includes(item.category) && (
+                <>
+                  <Text style={[styles.cardDot, { color: themeColors.subtext }]}>•</Text>
+                  <Text style={[styles.cardDetail, { color: themeColors.subtext }]}>{item.quantity} {item.unit} @ {formatAmount(item.ratePerUnit)}</Text>
+                </>
+              )}
             </View>
             <View style={styles.cardFooter}>
               <Text style={[styles.cardDate, { color: themeColors.subtext }]}>{formatDate(item.date)}</Text>
@@ -680,80 +681,96 @@ export default function Expense() {
                 ))}
               </View>
 
-              {/* Quantity + Unit row */}
-              {!categoriesWithoutUnits.includes(category) ? (
-                <View style={styles.row}>
-                  <View style={{ flex: 1, marginRight: 8 }}>
-                    <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('quantity')}</Text>
-                    <TextInput
-                      placeholder="0"
-                      placeholderTextColor={themeColors.subtext}
-                      value={quantity}
-                      onChangeText={setQuantity}
-                      keyboardType="numeric"
-                      style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
-                    />
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 8 }}>
-                    <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('unit')}</Text>
-                    <TouchableOpacity
-                      style={[
-                        styles.input,
-                        styles.dropdownTrigger,
-                        { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 },
-                        fixedUnits[category] && { opacity: 0.7 }
-                      ]}
-                      onPress={() => {
-                        if (!fixedUnits[category]) {
-                          setUnitDropdownVisible(true);
-                        }
-                      }}
-                      disabled={!!fixedUnits[category]}
-                    >
-                      <Text style={{ color: unit ? themeColors.text : themeColors.subtext, fontSize: 15, flex: 1 }}>
-                        {unit || "Select unit"}
-                      </Text>
-                      {!fixedUnits[category] && <Text style={{ color: themeColors.subtext, fontSize: 12 }}>▼</Text>}
-                    </TouchableOpacity>
-                    <DropdownModal
-                      visible={unitDropdownVisible}
-                      onClose={() => setUnitDropdownVisible(false)}
-                      onSelect={setUnit}
-                      options={category === "Transport" ? transportUnits : unitsList}
-                      selected={unit}
-                      title="Select Unit"
-                    />
-                  </View>
-                </View>
-              ) : null}
-
-              {/* Diameter Selection (Steel & Aggregate only) */}
-              {(category === "Steel" || category === "Aggregate") ? (
-                <View>
-                  <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{category === "Steel" ? "Diameter" : "Size"}</Text>
-                  <TouchableOpacity
-                    style={[styles.input, styles.dropdownTrigger, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }]}
-                    onPress={() => setDiameterDropdownVisible(true)}
-                  >
-                    <Text style={{ color: diameter ? themeColors.text : themeColors.subtext, fontSize: 15, flex: 1 }}>
-                      {diameter || "Select size"}
-                    </Text>
-                    <Text style={{ color: themeColors.subtext, fontSize: 12 }}>▼</Text>
-                  </TouchableOpacity>
-                  <DropdownModal
-                    visible={diameterDropdownVisible}
-                    onClose={() => setDiameterDropdownVisible(false)}
-                    onSelect={setDiameter}
-                    options={category === "Steel" ? steelSizes : aggregateSizes}
-                    selected={diameter}
-                    title="Select Size"
+              {/* Dynamic Sections Based on Category */}
+              {categoriesWithoutUnits.includes(category) ? (
+                /* SECTION A: For unit-less categories (Labor, Misc, etc) */
+                <View style={{ marginTop: 15 }}>
+                  <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('amount') || "Amount Paid"} ({currencySymbol})</Text>
+                  <TextInput
+                    placeholder="Enter total amount"
+                    placeholderTextColor={themeColors.subtext}
+                    value={manualTotal}
+                    onChangeText={setManualTotal}
+                    keyboardType="numeric"
+                    style={[styles.input, { backgroundColor: themeColors.card, borderBottomWidth: 1, borderBottomColor: "#5B8A72", borderWidth: 1, borderColor: themeColors.border, color: themeColors.text }]}
                   />
+                  <Text style={{ fontSize: 11, color: themeColors.subtext, marginTop: -15, marginBottom: 15, marginLeft: 5 }}>
+                    * Only amount is required for {category}
+                  </Text>
                 </View>
-              ) : null}
-
-              {/* Rate per Unit - Hidden for Labor, Equipment, Plumbing */}
-              {!categoriesWithoutUnits.includes(category) && (
+              ) : (
+                /* SECTION B: For material categories (Cement, Steel, etc) */
                 <>
+                  {/* Quantity + Unit row */}
+                  <View style={styles.row}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('quantity')}</Text>
+                      <TextInput
+                        placeholder="0"
+                        placeholderTextColor={themeColors.subtext}
+                        value={quantity}
+                        onChangeText={setQuantity}
+                        keyboardType="numeric"
+                        style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
+                      />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 8 }}>
+                      <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('unit')}</Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.input,
+                          styles.dropdownTrigger,
+                          { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 },
+                          fixedUnits[category] && { opacity: 0.7 }
+                        ]}
+                        onPress={() => {
+                          if (!fixedUnits[category]) {
+                            setUnitDropdownVisible(true);
+                          }
+                        }}
+                        disabled={!!fixedUnits[category]}
+                      >
+                        <Text style={{ color: unit ? themeColors.text : themeColors.subtext, fontSize: 15, flex: 1 }}>
+                          {unit || "Select unit"}
+                        </Text>
+                        {!fixedUnits[category] && <Text style={{ color: themeColors.subtext, fontSize: 12 }}>▼</Text>}
+                      </TouchableOpacity>
+                      <DropdownModal
+                        visible={unitDropdownVisible}
+                        onClose={() => setUnitDropdownVisible(false)}
+                        onSelect={setUnit}
+                        options={category === "Transport" ? transportUnits : unitsList}
+                        selected={unit}
+                        title="Select Unit"
+                      />
+                    </View>
+                  </View>
+
+                  {/* Diameter Selection (Steel & Aggregate only) */}
+                  {(category === "Steel" || category === "Aggregate") && (
+                    <View>
+                      <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{category === "Steel" ? "Diameter" : "Size"}</Text>
+                      <TouchableOpacity
+                        style={[styles.input, styles.dropdownTrigger, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1 }]}
+                        onPress={() => setDiameterDropdownVisible(true)}
+                      >
+                        <Text style={{ color: diameter ? themeColors.text : themeColors.subtext, fontSize: 15, flex: 1 }}>
+                          {diameter || "Select size"}
+                        </Text>
+                        <Text style={{ color: themeColors.subtext, fontSize: 12 }}>▼</Text>
+                      </TouchableOpacity>
+                      <DropdownModal
+                        visible={diameterDropdownVisible}
+                        onClose={() => setDiameterDropdownVisible(false)}
+                        onSelect={setDiameter}
+                        options={category === "Steel" ? steelSizes : aggregateSizes}
+                        selected={diameter}
+                        title="Select Size"
+                      />
+                    </View>
+                  )}
+
+                  {/* Rate per Unit */}
                   <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('rate_per_unit')} ({currencySymbol})</Text>
                   <TextInput
                     placeholder="0"
@@ -763,23 +780,23 @@ export default function Expense() {
                     keyboardType="numeric"
                     style={[styles.input, { backgroundColor: themeColors.card, borderColor: themeColors.border, borderWidth: 1, color: themeColors.text }]}
                   />
+
+                  {/* Manual Total Amount */}
+                  <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('total_amount_label')} ({currencySymbol})</Text>
+                  <TextInput
+                    placeholder={
+                      formattedCalculatedTotal !== "0.00"
+                        ? `Suggestion: ${currencySymbol}${formattedCalculatedTotal}`
+                        : "Enter final amount"
+                    }
+                    placeholderTextColor={themeColors.subtext}
+                    value={manualTotal}
+                    onChangeText={setManualTotal}
+                    keyboardType="numeric"
+                    style={[styles.input, { backgroundColor: themeColors.card, borderBottomWidth: 1, borderBottomColor: "#5B8A72", borderWidth: 1, borderColor: themeColors.border, color: themeColors.text }]}
+                  />
                 </>
               )}
-
-              {/* Manual Total Amount */}
-              <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('total_amount_label')} ({currencySymbol})</Text>
-              <TextInput
-                placeholder={
-                  formattedCalculatedTotal !== "0.00"
-                    ? `Suggestion: ${currencySymbol}${formattedCalculatedTotal}`
-                    : (categoriesWithoutUnits.includes(category) ? "Required: Enter total amount" : "Enter final amount")
-                }
-                placeholderTextColor={themeColors.subtext}
-                value={manualTotal}
-                onChangeText={setManualTotal}
-                keyboardType="numeric"
-                style={[styles.input, { backgroundColor: themeColors.card, borderBottomWidth: 1, borderBottomColor: "#5B8A72", borderWidth: 1, borderColor: themeColors.border, color: themeColors.text }]}
-              />
 
               {/* Payment Mode */}
               <Text style={[styles.fieldLabel, { color: themeColors.subtext }]}>{t('payment_mode')}</Text>
@@ -852,7 +869,7 @@ export default function Expense() {
           </ExpoLinearGradient>
         </Modal>
       </SafeAreaView>
-    </ExpoLinearGradient>
+    </ExpoLinearGradient >
   );
 }
 

@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { AuthContext } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
+import { useData } from "../context/DataContext";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -22,6 +23,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystemLegacy from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { Buffer } from 'buffer';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform, StatusBar } from "react-native";
 window.Buffer = window.Buffer || Buffer;
 
@@ -37,8 +39,8 @@ const SectionHeader = ({ title, icon, iconColor, themeColors }) => (
 export default function DataManagement() {
     const { userToken } = useContext(AuthContext);
     const { t, themeColors, settings } = useSettings();
+    const { setExpenses, setIncomes } = useData();
     const router = useRouter();
-
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
@@ -205,6 +207,17 @@ export default function DataManagement() {
                             await axios.post(`${BASE_URL}/api/data/clear`, { password }, {
                                 headers: { Authorization: `Bearer ${userToken}` },
                             });
+
+                            // Clear local context state
+                            setExpenses([]);
+                            setIncomes([]);
+
+                            // Clear local Storage cache
+                            await Promise.all([
+                                AsyncStorage.removeItem("cached_expenses"),
+                                AsyncStorage.removeItem("cached_incomes")
+                            ]);
+
                             Alert.alert(t("success"), t("clear_success"));
                             setClearModalVisible(false);
                             setPassword("");

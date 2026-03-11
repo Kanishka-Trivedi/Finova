@@ -16,11 +16,13 @@ import {
     Pressable,
     BackHandler,
 } from "react-native";
-import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Swipeable } from "react-native-gesture-handler";
 import { LinearGradient as ExpoLinearGradient } from "expo-linear-gradient";
 import { AuthContext } from "../../context/AuthContext";
 import { useSettings } from "../../context/SettingsContext";
+import { useData } from "../../context/DataContext";
 import { BASE_URL } from "../../config";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -153,7 +155,7 @@ function DatePickerModal({ visible, onClose, onSelect, selectedDate, themeColors
 export default function IncomeScreen() {
     const { userToken } = useContext(AuthContext);
     const { themeColors, settings, currencySymbol, formatAmount, convertToBase, formatDate } = useSettings();
-    const [incomes, setIncomes] = useState([]);
+    const { incomes, setIncomes, refresh: fetchIncomes, refreshSilently } = useData();
     const [modalVisible, setModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [filterMode, setFilterMode] = useState("All");
@@ -188,20 +190,13 @@ export default function IncomeScreen() {
         return () => backHandler.remove();
     }, [modalVisible]);
 
-    useEffect(() => {
-        if (userToken) fetchIncomes();
-    }, [userToken]);
-
-    const fetchIncomes = async () => {
-        try {
-            const res = await axios.get(`${BASE_URL}/incomes`, {
-                headers: { Authorization: `Bearer ${userToken}` },
-            });
-            setIncomes(res.data);
-        } catch (error) {
-            console.log("Fetch income error:", error.message);
-        }
-    };
+    useFocusEffect(
+        useCallback(() => {
+            if (userToken) {
+                fetchIncomes();
+            }
+        }, [userToken, fetchIncomes])
+    );
 
     const resetForm = () => {
         setDate(new Date().toISOString().split("T")[0]);
@@ -228,6 +223,7 @@ export default function IncomeScreen() {
                 { headers: { Authorization: `Bearer ${userToken}` } }
             );
             setIncomes([res.data, ...incomes]);
+            refreshSilently(); // Background sync
             setModalVisible(false);
             resetForm();
         } catch (error) {
@@ -241,6 +237,7 @@ export default function IncomeScreen() {
                 headers: { Authorization: `Bearer ${userToken}` },
             });
             setIncomes(incomes.filter((i) => i._id !== id));
+            refreshSilently();
         } catch (error) {
             console.log("Delete error:", error.message);
         }

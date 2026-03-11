@@ -7,11 +7,7 @@ export default function Index() {
     const { userToken, isLoading } = useContext(AuthContext);
 
     if (isLoading) {
-        return (
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0F2027" }}>
-                <ActivityIndicator size="large" color="#4ADE80" />
-            </View>
-        );
+        return null; // Don't show anything during the auth check to prevent the 'irritating loader' flash
     }
 
     if (userToken) {

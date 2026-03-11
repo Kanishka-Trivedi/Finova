@@ -48,25 +48,26 @@ export const AppLockProvider = ({ children }) => {
     const reloadLockSettings = useCallback(async () => {
         if (!userToken) return;
         try {
+            // 1. Try to load from cache first for immediate protection
+            const cached = await AsyncStorage.getItem("lockSettings");
+            if (cached) setLockSettings(JSON.parse(cached));
+
+            // 2. Refresh from server
             const res = await axios.get(`${BASE_URL}/api/auth/security-settings`, {
                 headers: { Authorization: `Bearer ${userToken}` },
             });
-            setLockSettings(res.data);
-            // Persist PIN length to AsyncStorage so the lock screen can read it
-            // without network (used when unlocking on cold start).
-            await AsyncStorage.setItem(
-                "lockSettings",
-                JSON.stringify({
-                    hasPin: res.data.hasPin,
-                    pinLength: res.data.pinLength,
-                    biometricsEnabled: res.data.biometricsEnabled,
-                    autoLockTimer: res.data.autoLockTimer,
-                })
-            );
+            const newSettings = {
+                hasPin: res.data.hasPin,
+                pinLength: res.data.pinLength,
+                biometricsEnabled: res.data.biometricsEnabled,
+                autoLockTimer: res.data.autoLockTimer,
+            };
+            setLockSettings(newSettings);
+
+            // Persist for next cold start
+            await AsyncStorage.setItem("lockSettings", JSON.stringify(newSettings));
         } catch (e) {
-            // If network fails, fall back to cached version
-            const cached = await AsyncStorage.getItem("lockSettings");
-            if (cached) setLockSettings(JSON.parse(cached));
+            console.log("Error loading lock settings:", e);
         }
     }, [userToken]);
 

@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
+import { useData } from "../context/DataContext";
 import { BASE_URL } from "../config";
 import axios from "axios";
 
@@ -29,6 +30,7 @@ export default function ExpenseDetail() {
     const router = useRouter();
     const { userToken } = useContext(AuthContext);
     const { t, themeColors, settings, currencySymbol, formatAmount, convertToDisplay, convertToBase, formatDate } = useSettings();
+    const { refreshSilently } = useData();
 
     // Initial state from params
     const [expenseData, setExpenseData] = useState({
@@ -51,7 +53,7 @@ export default function ExpenseDetail() {
         Tiles: "#F472B6", Color: "#4ADE80", Block: "#E879F9", Labor: "#22D3EE",
         Equipment: "#FACC15", Transport: "#6366F1", Miscellaneous: "#14B8A6",
     };
-    const categoriesWithoutUnits = ["Labor", "Equipment", "Plumbing"];
+    const categoriesWithoutUnits = ["Labor", "Equipment", "Plumbing", "Miscellaneous"];
     const catColor = categoryColors[expenseData.category] || "#5B8A72";
     const isNoUnitCat = categoriesWithoutUnits.includes(expenseData.category);
 
@@ -110,6 +112,7 @@ export default function ExpenseDetail() {
             });
 
             setIsEditModalVisible(false);
+            refreshSilently(); // Update central store
             Alert.alert("Success", "Expense updated successfully");
         } catch (error) {
             console.log("Update error:", error.message);
