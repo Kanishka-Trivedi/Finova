@@ -371,9 +371,11 @@ export default function Dashboard() {
 
   const totalIncomeThisMonth = thisMonthIncomes.reduce((s, i) => s + (i.amount || 0), 0);
   const totalExpenseThisMonth = thisMonthExpenses.reduce((s, e) => s + (e.totalAmount || 0), 0);
+  const totalIncomeAllTime = incomes.reduce((s, i) => s + (i.amount || 0), 0);
+  const totalExpenseAllTime = expenses.reduce((s, e) => s + (e.totalAmount || 0), 0);
   const totalIncomeLastMonth = lastMonthIncomes.reduce((s, i) => s + (i.amount || 0), 0);
   const totalExpenseLastMonth = lastMonthExpenses.reduce((s, e) => s + (e.totalAmount || 0), 0);
-  const netBalance = totalIncomeThisMonth - totalExpenseThisMonth;
+  const netBalance = totalIncomeAllTime - totalExpenseAllTime;
   const incomePctChg = pctChange(totalIncomeThisMonth, totalIncomeLastMonth);
   const expensePctChg = pctChange(totalExpenseThisMonth, totalExpenseLastMonth);
 
@@ -563,7 +565,7 @@ export default function Dashboard() {
                 <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: "600" }}>{formatDate(new Date())}</Text>
               </View>
             </View>
-            <Text style={s.tealAmountBig}>{formatAmount(totalExpenseThisMonth)}</Text>
+            <Text style={s.tealAmountBig}>{formatAmount(totalExpenseAllTime)}</Text>
             <View style={{ marginTop: 14 }}>
               <MiniSparkline data={expenseSpark} color="rgba(255,255,255,0.45)" width={SCREEN_W - 80} height={32} />
             </View>
@@ -583,7 +585,7 @@ export default function Dashboard() {
                 <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: "600" }}>{formatDate(new Date())}</Text>
               </View>
             </View>
-            <Text style={s.tealAmountBig}>{formatAmount(totalIncomeThisMonth)}</Text>
+            <Text style={s.tealAmountBig}>{formatAmount(totalIncomeAllTime)}</Text>
             <View style={{ marginTop: 14 }}>
               <MiniSparkline data={incomeSpark} color="rgba(255,255,255,0.45)" width={SCREEN_W - 80} height={32} />
             </View>
@@ -611,8 +613,8 @@ export default function Dashboard() {
           </View>
 
           {/* Big Amount */}
-          <Text style={[s.chartBigAmount, { color: themeColors.text }]}>{formatAmount(totalExpenseThisMonth)}</Text>
-          <Text style={{ color: themeColors.subtext, fontSize: 12, marginBottom: 16 }}>This Month's Total</Text>
+          <Text style={[s.chartBigAmount, { color: themeColors.text }]}>{formatAmount(totalExpenseAllTime)}</Text>
+          <Text style={{ color: themeColors.subtext, fontSize: 12, marginBottom: 16 }}>Total Expenses</Text>
 
           <AreaChart
             data={chartData.data}
@@ -643,8 +645,8 @@ export default function Dashboard() {
           </View>
 
           {/* Big Amount */}
-          <Text style={[s.chartBigAmount, { color: themeColors.text }]}>{formatAmount(totalIncomeThisMonth)}</Text>
-          <Text style={{ color: themeColors.subtext, fontSize: 12, marginBottom: 16 }}>This Month's Total</Text>
+          <Text style={[s.chartBigAmount, { color: themeColors.text }]}>{formatAmount(totalIncomeAllTime)}</Text>
+          <Text style={{ color: themeColors.subtext, fontSize: 12, marginBottom: 16 }}>Total Income</Text>
 
           <AreaChart
             data={incomeChartData.data}
@@ -661,7 +663,7 @@ export default function Dashboard() {
             <View style={[s.colorStatIcon, { backgroundColor: "#E53E3E" }]}>
               <Ionicons name="trending-up" size={16} color="#fff" />
             </View>
-            <Text style={{ color: themeColors.text, fontSize: 20, fontWeight: "800", marginTop: 8 }}>{formatAmount(totalExpenseThisMonth)}</Text>
+            <Text style={{ color: themeColors.text, fontSize: 20, fontWeight: "800", marginTop: 8 }}>{formatAmount(totalExpenseAllTime)}</Text>
             <Text style={{ color: themeColors.subtext, fontSize: 11, fontWeight: "600", marginTop: 2 }}>Total Expenses</Text>
             <View style={{ marginTop: 8 }}>
               <MiniSparkline data={expenseSpark} color="#E53E3E" width={90} height={22} />
@@ -673,7 +675,7 @@ export default function Dashboard() {
             <View style={[s.colorStatIcon, { backgroundColor: TEAL }]}>
               <Ionicons name="trending-down" size={16} color="#fff" />
             </View>
-            <Text style={{ color: themeColors.text, fontSize: 20, fontWeight: "800", marginTop: 8 }}>{formatAmount(totalIncomeThisMonth)}</Text>
+            <Text style={{ color: themeColors.text, fontSize: 20, fontWeight: "800", marginTop: 8 }}>{formatAmount(totalIncomeAllTime)}</Text>
             <Text style={{ color: themeColors.subtext, fontSize: 11, fontWeight: "600", marginTop: 2 }}>Total Income</Text>
             <View style={{ marginTop: 8 }}>
               <MiniSparkline data={incomeSpark} color={TEAL} width={90} height={22} />

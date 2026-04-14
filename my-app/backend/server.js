@@ -7,7 +7,7 @@ import incomeRoutes from "./routes/incomeRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import dataRoutes from "./routes/dataRoutes.js";
 
-dotenv.config();
+dotenv.config({ override: true });
 
 const app = express();
 app.use(cors());
@@ -21,9 +21,13 @@ app.use((req, res, next) => {
 });
 
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect(process.env.MONGO_URI, {
+    serverSelectionTimeoutMS: 5000 // 5 seconds instead of 30
+  })
   .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.log(err));
+  .catch((err) => {
+    console.error("MongoDB Connection Error Details:", err);
+  });
 
 app.use("/api/auth", authRoutes);
 app.use("/expenses", expenseRoutes);
